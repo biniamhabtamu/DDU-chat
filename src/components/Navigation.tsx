@@ -1,14 +1,18 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTheme } from "@/components/ThemeProvider";
-import { Menu, X, Sun, Moon, Code, Home, MessageCircle, Book, Users, FileText } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Menu, X, Sun, Moon, Code, Home, MessageCircle, Book, Users, FileText, LogIn, LogOut } from "lucide-react";
 import direDev from "@/assets/dire-dev-logo.png";
 
 const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
+  const { currentUser, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const navItems = [
     { name: "Home", path: "/", icon: Home },
@@ -23,6 +27,15 @@ const Navigation = () => {
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
   };
 
   return (
@@ -62,8 +75,38 @@ const Navigation = () => {
             })}
           </div>
 
-          {/* Theme Toggle & Mobile Menu */}
+          {/* Auth & Theme Controls */}
           <div className="flex items-center space-x-2">
+            {currentUser ? (
+              <div className="flex items-center space-x-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={currentUser.photoURL || ''} />
+                  <AvatarFallback className="bg-primary/10 text-primary">
+                    {currentUser.displayName?.charAt(0) || currentUser.email?.charAt(0) || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="hidden md:block text-sm font-medium text-foreground">
+                  {currentUser.displayName || 'Student'}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="hidden md:flex"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </Button>
+              </div>
+            ) : (
+              <Button asChild variant="default" size="sm" className="hidden md:flex">
+                <Link to="/auth">
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Login
+                </Link>
+              </Button>
+            )}
+            
             <Button
               variant="ghost"
               size="icon"
@@ -115,6 +158,43 @@ const Navigation = () => {
                   </Link>
                 );
               })}
+              
+              {/* Mobile Auth Actions */}
+              <div className="border-t pt-2 mt-2">
+                {currentUser ? (
+                  <div className="space-y-2">
+                    <div className="px-3 py-2 flex items-center space-x-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={currentUser.photoURL || ''} />
+                        <AvatarFallback className="bg-primary/10 text-primary">
+                          {currentUser.displayName?.charAt(0) || currentUser.email?.charAt(0) || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm font-medium text-foreground">
+                        {currentUser.displayName || 'Student'}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleLogout}
+                      className="w-full justify-start px-3"
+                    >
+                      <LogOut className="h-4 w-4 mr-3" />
+                      Logout
+                    </Button>
+                  </div>
+                ) : (
+                  <Link
+                    to="/auth"
+                    className="block px-3 py-2 rounded-md flex items-center space-x-3 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <LogIn className="h-5 w-5" />
+                    <span>Login / Sign Up</span>
+                  </Link>
+                )}
+              </div>
             </div>
           </div>
         )}
