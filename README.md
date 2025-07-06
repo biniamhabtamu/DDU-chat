@@ -1,73 +1,202 @@
-# Welcome to your Lovable project
+📚 Dire-Dev – The Ultimate Web App for Dire Dawa University Students
+🚀 Welcome to Dire-Dev, your all-in-one academic platform designed exclusively for Dire Dawa University students. Access learning materials, collaborate in real-time, and unlock powerful development tools—all in one place!
 
-## Project info
+🔥 Features Overview
+📱 Modern & Responsive UI
+Sleek and intuitive navigation layout
 
-**URL**: https://lovable.dev/projects/52ab0b45-d7d0-41a6-b16e-e1b8e2fff3a9
+Toggle between Dark and Light mode
 
-## How can I edit this code?
+Fully responsive across all devices
 
-There are several ways of editing your application.
+🔐 Secure Authentication
+Email/password sign-up & login
 
-**Use Lovable**
+Google authentication
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/52ab0b45-d7d0-41a6-b16e-e1b8e2fff3a9) and start prompting.
+Protected routes and role-based access control
 
-Changes made via Lovable will be committed automatically to this repo.
+📚 Academic Resources
+Dev-Materials: Organized course content by department & semester
 
-**Use your preferred IDE**
+Dev-Books: Searchable digital library of textbooks
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Filtering and searching by keyword, course, or semester
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+💬 Real-Time Collaboration
+Private & group chat support
 
-Follow these steps:
+Code sharing with syntax highlighting
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+File & image sharing
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+🗨️ Discussion Forum
+Q&A system for academic discussions
 
-# Step 3: Install the necessary dependencies.
-npm i
+Upvote/downvote features
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+Threads categorized by subjects
+
+🛠️ Developer Tools
+In-browser code editor (HTML, CSS, JS, Python)
+
+Markdown notes with live preview
+
+Task management system (To-Do list, reminders)
+
+🛠️ Tech Stack
+Frontend
+React.js (Vite)
+
+SCSS for responsive and modular styling
+
+React Router for seamless navigation
+
+Firebase Authentication for login/signup
+
+Backend
+Firebase Firestore: Realtime NoSQL database
+
+Firebase Storage: File and image uploads
+
+Firebase Hosting: Production-ready deployment
+
+UI & UX
+Custom-designed UI components
+
+Accessibility best practices
+
+Fully responsive across mobile, tablet, and desktop
+
+🚀 Getting Started
+✅ Prerequisites
+Node.js (v16+)
+
+npm or yarn
+
+Firebase account
+
+📦 Installation
+Clone the repository
+
+
+git clone https://github.com/yourusername/dire-dev.git
+cd dire-dev
+Install dependencies
+
+bash
+Copy
+Edit
+npm install
+# or
+yarn install
+Configure Firebase
+
+Create a .env file in the root directory:
+
+
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_bucket.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+Start development server
+
+
 npm run dev
-```
+📂 Project Structure
 
-**Edit a file directly in GitHub**
+Edit
+src/
+├── assets/          # Static assets (images, logos) <br>
+├── components/      # Reusable components (Navbar, Buttons, etc.) <br>
+├── config/          # Firebase config & environment setup<br>
+├── context/         # Global state/context providers<br>
+├── hooks/           # Custom React hooks<br>
+├── pages/           # Route pages (Home, Forum, Tools, etc.)<br>
+├── services/        # API and Firebase services<br>
+├── styles/          # Global and modular SCSS styles<br>
+├── App.jsx          # Root component<br>
+└── main.jsx         # Entry point
+🔧 Available Scripts
+Command	Description
+npm run dev	Start development server
+npm run build	Build for production
+npm run preview	Preview production build
+npm run lint	Run ESLint for code quality
+npm run format	Format code using Prettier
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+🌟 Key Components & Modules
+✅ Authentication
+Email/password & Google login
 
-**Use GitHub Codespaces**
+Password reset functionality
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Role-based access for admin, student, etc.
 
-## What technologies are used for this project?
+📢 Announcements
+Admin interface to post updates
 
-This project is built with:
+Real-time updates
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Pinned posts
 
-## How can I deploy this project?
+🧵 Forum System
+Rich-text threads & replies
 
-Simply open [Lovable](https://lovable.dev/projects/52ab0b45-d7d0-41a6-b16e-e1b8e2fff3a9) and click on Share -> Publish.
+Voting system
 
-## Can I connect a custom domain to my Lovable project?
+Categorization by subject/department
 
-Yes, you can!
+👨‍💻 Dev Tools
+Code editor with real-time preview
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Markdown support for documentation
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Cloud-synced to-do/task system
+
+🔐 Firebase Security Rules Example
+js
+Copy
+Edit
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /announcements/{announcement} {
+      allow read: if true;
+      allow create: if request.auth != null && request.auth.token.isAdmin == true;
+      allow update, delete: if request.auth != null &&
+        (request.auth.token.isAdmin == true || resource.data.authorId == request.auth.uid);
+    }
+  }
+}
+🤝 Contributing
+We love community contributions! Follow the steps below:
+
+Fork the repository
+
+Create a new branch:
+git checkout -b feature/YourFeatureName
+
+Commit your changes:
+git commit -m "Add YourFeatureName"
+
+Push to your branch:
+git push origin feature/YourFeatureName
+
+Open a Pull Request
+
+📄 License
+This project is licensed under the MIT License. See the LICENSE file for details.
+
+✉️ Contact
+Project Lead: Your Name
+Email: your.email@example.com
+University: Dire Dawa University
+
+🌟 Support the Project
+Contribute, suggest, or report bugs to make Dire-Dev better for all Dire Dawa University students.
+
+💡 Let’s build the future of learning and development at Dire Dawa University together!
+
