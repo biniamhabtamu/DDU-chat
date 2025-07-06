@@ -41,7 +41,7 @@ const Discussion = () => {
       id: 1,
       title: "How to handle authentication in React applications?",
       content: "I'm building a React app and struggling with implementing user authentication. Should I use JWT tokens or session-based auth? What are the best practices?",
-      author: "Ahmed Hassan",
+      author: "Biniam Habtamu",
       authorAvatar: "AH",
       category: "programming",
       tags: ["React", "Authentication", "Security"],
@@ -57,7 +57,7 @@ const Discussion = () => {
       id: 2,
       title: "Linear Algebra: Eigenvalues and Eigenvectors explained",
       content: "Can someone explain the concept of eigenvalues and eigenvectors in simple terms? I'm having trouble understanding their practical applications.",
-      author: "Sara Mohammed",
+      author: "Sara Mogese",
       authorAvatar: "SM",
       category: "mathematics",
       tags: ["Linear Algebra", "Mathematics", "Eigenvalues"],
@@ -128,8 +128,8 @@ const Discussion = () => {
   ];
 
   const topContributors = [
-    { name: "Ahmed Hassan", avatar: "AH", points: 245, badge: "Expert" },
-    { name: "Sara Mohammed", avatar: "SM", points: 189, badge: "Helper" },
+    { name: "Biniam Habtamu", avatar: "AH", points: 245, badge: "Expert" },
+    { name: "Sara Moges", avatar: "SM", points: 189, badge: "Helper" },
     { name: "Meron Tadesse", avatar: "MT", points: 156, badge: "Mentor" },
     { name: "David Wilson", avatar: "DW", points: 134, badge: "Helper" }
   ];

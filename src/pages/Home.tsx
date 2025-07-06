@@ -14,7 +14,9 @@ import {
   ArrowRight,
   GraduationCap,
   Lightbulb,
-  Heart
+  Heart,
+  Trophy,
+  Group
 } from "lucide-react";
 import heroImage from "@/assets/hero-university.jpg";
 
@@ -55,6 +57,18 @@ const Home = () => {
       title: "Secure Platform",
       description: "Firebase authentication & security",
       path: "#"
+    },
+    {
+      icon: Group,
+      title: "Student Clubs",
+      description: "Find and join campus clubs & organizations",
+      path: "/clubs"
+    },
+    {
+      icon: Trophy,
+      title: "Achievements",
+      description: "Earn certificates and showcase milestones",
+      path: "/achievements"
     }
   ];
 
@@ -68,47 +82,40 @@ const Home = () => {
   return (
     <div className="min-h-screen text-foreground">
       {/* Hero Section */}
-      <section className="relative py-20 px-4 overflow-hidden">
+      <section className="relative py-20 px-4 overflow-hidden bg-gradient-to-br from-indigo-800 via-purple-800 to-pink-700 text-white">
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-10"
           style={{ backgroundImage: `url(${heroImage})` }}
         />
-        <div className="absolute inset-0 bg-gradient-hero opacity-90" />
-        
-        <div className="relative max-w-6xl mx-auto text-center">
-          <div className="animate-fade-in">
-            <Badge variant="secondary" className="mb-4 px-4 py-2">
-              <Zap className="w-4 h-4 mr-2" />
-              Built for Dire Dawa University Students
-            </Badge>
-            
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-white">
-              Welcome to{" "}
-              <span className="text-gradient-primary">Dire-Dev</span>
-            </h1>
-            
-            <p className="text-xl md:text-2xl text-white/90 mb-8 max-w-3xl mx-auto leading-relaxed">
-              Your all-in-one platform for academic resources, collaboration, and development tools. 
-              Connect, learn, and build amazing projects together.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Button size="lg" className="bg-white text-primary hover:bg-white/90 shadow-strong">
-                <Heart className="w-5 h-5 mr-2" />
-                Get Started Now
-              </Button>
-              <Button 
-                variant="outline" 
-                size="lg" 
-                className="border-white/20 text-white hover:bg-white/10"
-                asChild
-              >
-                <Link to="/materials">
-                  <Book className="w-5 h-5 mr-2" />
-                  Explore Resources
-                </Link>
-              </Button>
-            </div>
+        <div className="relative max-w-6xl mx-auto text-center z-10">
+          <Badge variant="secondary" className="mb-4 px-4 py-2 bg-white text-primary font-semibold shadow-md">
+            <Zap className="w-4 h-4 mr-2" />
+            Built for Dire Dawa University Students
+          </Badge>
+          
+          <h1 className="text-5xl md:text-6xl font-extrabold mb-6 leading-tight">
+            Welcome to{" "}
+            <span className="bg-gradient-to-r from-yellow-300 via-pink-500 to-purple-500 bg-clip-text text-transparent">
+              Dire-Dev
+            </span>
+          </h1>
+          
+          <p className="text-xl md:text-2xl text-white/90 mb-8 max-w-3xl mx-auto leading-relaxed">
+            Your all-in-one platform for academic resources, collaboration, and development tools.
+            Connect, learn, and build amazing projects together.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <Button size="lg" className="bg-white text-primary hover:bg-white/90 shadow-xl">
+              <Heart className="w-5 h-5 mr-2" />
+              Get Started Now
+            </Button>
+            <Button variant="outline" size="lg" className="border-white text-white hover:bg-white/10" asChild>
+              <Link to="/materials">
+                <Book className="w-5 h-5 mr-2" />
+                Explore Resources
+              </Link>
+            </Button>
           </div>
         </div>
       </section>
@@ -119,8 +126,8 @@ const Home = () => {
           {stats.map((stat, i) => {
             const Icon = stat.icon;
             return (
-              <div key={i} className="p-4 rounded-xl shadow-sm bg-white dark:bg-white/10 backdrop-blur text-foreground animate-fade-in">
-                <div className="bg-gradient-to-r from-indigo-500 to-purple-500 w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center shadow-md">
+              <div key={i} className="p-4 rounded-xl shadow-md bg-white dark:bg-white/10 text-foreground hover:scale-105 transition duration-300">
+                <div className="bg-gradient-to-r from-indigo-500 to-purple-600 w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center">
                   <Icon className="w-7 h-7 text-white" />
                 </div>
                 <div className="text-2xl font-bold">{stat.value}</div>
@@ -142,7 +149,7 @@ const Home = () => {
               Everything You Need to <span className="text-purple-600">Succeed</span>
             </h2>
             <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-              Discover powerful tools designed for Dire Dawa University students.
+              Discover powerful tools tailored for Dire Dawa University students.
             </p>
           </div>
 
@@ -152,10 +159,10 @@ const Home = () => {
               return (
                 <Card
                   key={i}
-                  className="group bg-white/60 dark:bg-white/10 backdrop-blur-lg border border-gray-200 dark:border-white/10 shadow-sm hover:shadow-xl transition duration-300 hover:-translate-y-1"
+                  className="group bg-white/60 dark:bg-white/10 backdrop-blur-lg border border-gray-200 dark:border-white/10 hover:shadow-xl hover:-translate-y-1 transition"
                 >
                   <CardHeader>
-                    <div className="w-12 h-12 rounded-md bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mb-4 shadow-lg group-hover:scale-105 transition">
+                    <div className="w-12 h-12 rounded-md bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition">
                       <Icon className="w-6 h-6 text-white" />
                     </div>
                     <CardTitle className="text-xl font-bold">{feature.title}</CardTitle>
@@ -182,7 +189,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* CTA */}
+      {/* CTA Section */}
       <section className="py-20 px-4 bg-gradient-to-tr from-purple-700 via-pink-600 to-indigo-700 text-white text-center">
         <div className="max-w-3xl mx-auto">
           <h2 className="text-4xl font-bold mb-4">Ready to Transform Your Academic Journey?</h2>
