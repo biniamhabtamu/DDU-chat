@@ -68,28 +68,47 @@ const Home = () => {
   return (
     <div className="min-h-screen text-foreground">
       {/* Hero Section */}
-      <section className="relative py-24 px-4 overflow-hidden bg-gradient-to-tr from-purple-700 via-indigo-700 to-blue-700">
-        <div className="absolute inset-0 opacity-10 bg-cover bg-center" style={{ backgroundImage: `url(${heroImage})` }} />
-        <div className="absolute inset-0 bg-black/60" />
-        <div className="relative max-w-6xl mx-auto text-center z-10">
-          <Badge className="mb-4 px-4 py-2 bg-white text-purple-700 text-sm shadow-md inline-flex items-center">
-            <Zap className="w-4 h-4 mr-2" /> Built for Dire Dawa University Students
-          </Badge>
-          <h1 className="text-5xl md:text-6xl font-extrabold mb-6 text-white drop-shadow-xl">
-            Welcome to <span className="bg-gradient-to-r from-yellow-300 via-pink-300 to-purple-400 text-transparent bg-clip-text">Dire-Dev</span>
-          </h1>
-          <p className="text-xl md:text-2xl text-white/80 mb-10 max-w-3xl mx-auto leading-relaxed">
-            Your all-in-one platform for academic resources, collaboration, and development tools.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-white text-purple-700 font-semibold hover:bg-white/90 shadow-lg">
-              <Heart className="w-5 h-5 mr-2" /> Get Started Now
-            </Button>
-            <Button variant="outline" size="lg" className="border-white/30 text-white hover:bg-white/10">
-              <Link to="/materials" className="flex items-center">
-                <Book className="w-5 h-5 mr-2" /> Explore Resources
-              </Link>
-            </Button>
+      <section className="relative py-20 px-4 overflow-hidden">
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-10"
+          style={{ backgroundImage: `url(${heroImage})` }}
+        />
+        <div className="absolute inset-0 bg-gradient-hero opacity-90" />
+        
+        <div className="relative max-w-6xl mx-auto text-center">
+          <div className="animate-fade-in">
+            <Badge variant="secondary" className="mb-4 px-4 py-2">
+              <Zap className="w-4 h-4 mr-2" />
+              Built for Dire Dawa University Students
+            </Badge>
+            
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-white">
+              Welcome to{" "}
+              <span className="text-gradient-primary">Dire-Dev</span>
+            </h1>
+            
+            <p className="text-xl md:text-2xl text-white/90 mb-8 max-w-3xl mx-auto leading-relaxed">
+              Your all-in-one platform for academic resources, collaboration, and development tools. 
+              Connect, learn, and build amazing projects together.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <Button size="lg" className="bg-white text-primary hover:bg-white/90 shadow-strong">
+                <Heart className="w-5 h-5 mr-2" />
+                Get Started Now
+              </Button>
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="border-white/20 text-white hover:bg-white/10"
+                asChild
+              >
+                <Link to="/materials">
+                  <Book className="w-5 h-5 mr-2" />
+                  Explore Resources
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
       </section>
@@ -171,8 +190,9 @@ const Home = () => {
             Join hundreds of students using Dire-Dev to collaborate, learn, and grow together.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-white text-purple-700 font-bold hover:bg-white/90 shadow-lg">
-              <GraduationCap className="w-5 h-5 mr-2" /> Join Dire-Dev Today
+            <Button size="lg" className="bg-white text-primary hover:bg-white/90 shadow-strong">
+              <GraduationCap className="w-5 h-5 mr-2" />
+              Join Dire-Dev Today
             </Button>
             <Button variant="outline" size="lg" className="border-white text-white hover:bg-white/10" asChild>
               <Link to="/discussion">
