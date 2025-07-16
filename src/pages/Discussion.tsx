@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,103 +20,40 @@ import {
   HelpCircle,
   Lightbulb,
   Code,
-  BookOpen
+  BookOpen,
+  X
 } from "lucide-react";
+import { db } from "@/lib/firebase";
+import { 
+  collection, 
+  addDoc, 
+  query, 
+  onSnapshot, 
+  orderBy, 
+  Timestamp 
+} from "firebase/firestore";
+import { formatDistanceToNow } from "date-fns";
 
 const Discussion = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newDiscussion, setNewDiscussion] = useState({
+    title: "",
+    content: "",
+    tags: "",
+    category: "general"
+  });
+  const [discussions, setDiscussions] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const categories = [
-    { id: "all", name: "All Discussions", count: 156, icon: MessageCircle },
-    { id: "programming", name: "Programming", count: 45, icon: Code },
-    { id: "mathematics", name: "Mathematics", count: 32, icon: BookOpen },
-    { id: "help", name: "Help & Support", count: 28, icon: HelpCircle },
-    { id: "projects", name: "Projects", count: 23, icon: Lightbulb },
-    { id: "general", name: "General", count: 18, icon: MessageCircle }
-  ];
-
-  const discussions = [
-    {
-      id: 1,
-      title: "How to handle authentication in React applications?",
-      content: "I'm building a React app and struggling with implementing user authentication. Should I use JWT tokens or session-based auth? What are the best practices?",
-      author: "Biniam Habtamu",
-      authorAvatar: "AH",
-      category: "programming",
-      tags: ["React", "Authentication", "Security"],
-      upvotes: 24,
-      replies: 8,
-      views: 156,
-      createdAt: "2024-01-15T10:30:00Z",
-      isPinned: false,
-      isSolved: false,
-      lastActivity: "2 hours ago"
-    },
-    {
-      id: 2,
-      title: "Linear Algebra: Eigenvalues and Eigenvectors explained",
-      content: "Can someone explain the concept of eigenvalues and eigenvectors in simple terms? I'm having trouble understanding their practical applications.",
-      author: "Sara Mogese",
-      authorAvatar: "SM",
-      category: "mathematics",
-      tags: ["Linear Algebra", "Mathematics", "Eigenvalues"],
-      upvotes: 18,
-      replies: 12,
-      views: 89,
-      createdAt: "2024-01-14T14:20:00Z",
-      isPinned: true,
-      isSolved: true,
-      lastActivity: "4 hours ago"
-    },
-    {
-      id: 3,
-      title: "Group Project: Building a University Management System",
-      content: "Looking for team members to build a comprehensive university management system. We need frontend developers, backend developers, and UI/UX designers.",
-      author: "Meron Tadesse",
-      authorAvatar: "MT",
-      category: "projects",
-      tags: ["Project", "Team", "Full-Stack"],
-      upvotes: 32,
-      replies: 15,
-      views: 203,
-      createdAt: "2024-01-13T09:15:00Z",
-      isPinned: false,
-      isSolved: false,
-      lastActivity: "1 hour ago"
-    },
-    {
-      id: 4,
-      title: "Best resources for learning Data Structures and Algorithms?",
-      content: "I'm preparing for technical interviews and need good resources for DSA. What books, courses, or websites do you recommend?",
-      author: "David Wilson",
-      authorAvatar: "DW",
-      category: "help",
-      tags: ["DSA", "Interview Prep", "Resources"],
-      upvotes: 15,
-      replies: 20,
-      views: 145,
-      createdAt: "2024-01-12T16:45:00Z",
-      isPinned: false,
-      isSolved: true,
-      lastActivity: "6 hours ago"
-    },
-    {
-      id: 5,
-      title: "Python vs JavaScript: Which should I learn first?",
-      content: "I'm new to programming and can't decide between Python and JavaScript as my first language. What are your thoughts?",
-      author: "Lisa Chen",
-      authorAvatar: "LC",
-      category: "programming",
-      tags: ["Python", "JavaScript", "Beginner"],
-      upvotes: 28,
-      replies: 25,
-      views: 312,
-      createdAt: "2024-01-11T11:30:00Z",
-      isPinned: false,
-      isSolved: false,
-      lastActivity: "30 minutes ago"
-    }
+    { id: "all", name: "All Discussions", count: 0, icon: MessageCircle },
+    { id: "programming", name: "Programming", count: 0, icon: Code },
+    { id: "mathematics", name: "Mathematics", count: 0, icon: BookOpen },
+    { id: "help", name: "Help & Support", count: 0, icon: HelpCircle },
+    { id: "projects", name: "Projects", count: 0, icon: Lightbulb },
+    { id: "general", name: "General", count: 0, icon: MessageCircle }
   ];
 
   const trendingTopics = [
@@ -134,10 +71,67 @@ const Discussion = () => {
     { name: "David Wilson", avatar: "DW", points: 134, badge: "Helper" }
   ];
 
+  // Fetch discussions from Firestore
+  useEffect(() => {
+    setIsLoading(true);
+    const q = query(collection(db, "discussions"), orderBy("createdAt", "desc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate(),
+        lastActivity: formatDistanceToNow(
+          doc.data().createdAt?.toDate() || new Date(), 
+          { addSuffix: true }
+        )
+      }));
+      
+      // Update discussion counts for categories
+      const updatedCategories = [...categories];
+      updatedCategories.forEach(cat => {
+        if (cat.id === "all") {
+          cat.count = docs.length;
+        } else {
+          cat.count = docs.filter(d => d.category === cat.id).length;
+        }
+      });
+      
+      setDiscussions(docs);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Create new discussion
+  const createDiscussion = async () => {
+    if (!newDiscussion.title || !newDiscussion.content) return;
+    
+    try {
+      await addDoc(collection(db, "discussions"), {
+        ...newDiscussion,
+        tags: newDiscussion.tags.split(",").map(tag => tag.trim()),
+        author: "Current User",
+        authorAvatar: "CU",
+        upvotes: 0,
+        replies: 0,
+        views: Math.floor(Math.random() * 100) + 50,
+        isPinned: false,
+        isSolved: false,
+        createdAt: Timestamp.now()
+      });
+      setIsModalOpen(false);
+      setNewDiscussion({ title: "", content: "", tags: "", category: "general" });
+    } catch (error) {
+      console.error("Error adding discussion: ", error);
+    }
+  };
+
   const filteredDiscussions = discussions.filter(discussion => {
     const matchesSearch = discussion.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          discussion.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         discussion.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+                         discussion.tags.some((tag: string) => 
+                           tag.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesCategory = selectedCategory === "all" || discussion.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -153,6 +147,66 @@ const Discussion = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* New Discussion Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background p-6 rounded-lg w-full max-w-md border border-border">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">New Discussion</h3>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setIsModalOpen(false)}
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            
+            <div className="space-y-4">
+              <Input
+                placeholder="Title"
+                value={newDiscussion.title}
+                onChange={(e) => setNewDiscussion({...newDiscussion, title: e.target.value})}
+              />
+              
+              <textarea
+                placeholder="Content"
+                className="w-full p-3 border rounded-lg min-h-[120px] focus:ring-2 focus:ring-primary focus:outline-none"
+                value={newDiscussion.content}
+                onChange={(e) => setNewDiscussion({...newDiscussion, content: e.target.value})}
+              />
+              
+              <Input
+                placeholder="Tags (comma separated)"
+                value={newDiscussion.tags}
+                onChange={(e) => setNewDiscussion({...newDiscussion, tags: e.target.value})}
+              />
+              
+              <select
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none"
+                value={newDiscussion.category}
+                onChange={(e) => setNewDiscussion({...newDiscussion, category: e.target.value})}
+              >
+                <option value="general">General</option>
+                <option value="programming">Programming</option>
+                <option value="mathematics">Mathematics</option>
+                <option value="help">Help & Support</option>
+                <option value="projects">Projects</option>
+              </select>
+              
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={createDiscussion}>
+                  Create Discussion
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto p-4">
         {/* Header */}
         <div className="mb-8">
@@ -165,7 +219,10 @@ const Discussion = () => {
                 Ask questions, share knowledge, and connect with your peers
               </p>
             </div>
-            <Button className="bg-gradient-primary">
+            <Button 
+              className="bg-gradient-primary hover:opacity-90 transition-opacity"
+              onClick={() => setIsModalOpen(true)}
+            >
               <Plus className="w-4 h-4 mr-2" />
               New Discussion
             </Button>
@@ -288,80 +345,96 @@ const Discussion = () => {
               </TabsList>
 
               <TabsContent value="recent" className="space-y-4">
-                {filteredDiscussions.map((discussion) => (
-                  <Card key={discussion.id} className="hover:shadow-soft transition-all duration-200">
-                    <CardContent className="p-6">
-                      <div className="flex space-x-4">
-                        <div className="flex flex-col items-center space-y-2 flex-shrink-0">
-                          <button className="p-1 hover:bg-muted rounded">
-                            <ArrowUp className="w-4 h-4" />
-                          </button>
-                          <span className="text-sm font-medium">{discussion.upvotes}</span>
-                          <button className="p-1 hover:bg-muted rounded">
-                            <ArrowDown className="w-4 h-4" />
-                          </button>
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex items-center space-x-2">
-                              {discussion.isPinned && (
-                                <Pin className="w-4 h-4 text-primary flex-shrink-0" />
-                              )}
-                              {discussion.isSolved && (
-                                <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
-                              )}
-                              <h3 className="text-lg font-semibold hover:text-primary cursor-pointer">
-                                {discussion.title}
-                              </h3>
-                            </div>
-                          </div>
-
-                          <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
-                            {discussion.content}
-                          </p>
-
-                          <div className="flex flex-wrap gap-2 mb-3">
-                            {discussion.tags.map((tag, index) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                              <div className="flex items-center space-x-2">
-                                <Avatar className="w-6 h-6">
-                                  <AvatarFallback className="text-xs bg-gradient-primary text-white">
-                                    {discussion.authorAvatar}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span>{discussion.author}</span>
-                              </div>
-                              <div className="flex items-center">
-                                <MessageCircle className="w-4 h-4 mr-1" />
-                                {discussion.replies}
-                              </div>
-                              <div className="flex items-center">
-                                <Eye className="w-4 h-4 mr-1" />
-                                {discussion.views}
-                              </div>
-                              <div className="flex items-center">
-                                <Clock className="w-4 h-4 mr-1" />
-                                {discussion.lastActivity}
-                              </div>
-                            </div>
-
-                            <Badge variant="outline" className="text-xs capitalize">
-                              {discussion.category}
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
+                {isLoading ? (
+                  <div className="flex justify-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                  </div>
+                ) : filteredDiscussions.length === 0 ? (
+                  <Card className="text-center py-12">
+                    <CardContent>
+                      <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-medium">No discussions found</h3>
+                      <p className="text-muted-foreground">
+                        Try changing your search or create a new discussion
+                      </p>
                     </CardContent>
                   </Card>
-                ))}
+                ) : (
+                  filteredDiscussions.map((discussion) => (
+                    <Card key={discussion.id} className="hover:shadow-soft transition-all duration-200">
+                      <CardContent className="p-6">
+                        <div className="flex space-x-4">
+                          <div className="flex flex-col items-center space-y-2 flex-shrink-0">
+                            <button className="p-1 hover:bg-muted rounded">
+                              <ArrowUp className="w-4 h-4" />
+                            </button>
+                            <span className="text-sm font-medium">{discussion.upvotes}</span>
+                            <button className="p-1 hover:bg-muted rounded">
+                              <ArrowDown className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-center space-x-2">
+                                {discussion.isPinned && (
+                                  <Pin className="w-4 h-4 text-primary flex-shrink-0" />
+                                )}
+                                {discussion.isSolved && (
+                                  <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
+                                )}
+                                <h3 className="text-lg font-semibold hover:text-primary cursor-pointer">
+                                  {discussion.title}
+                                </h3>
+                              </div>
+                            </div>
+
+                            <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
+                              {discussion.content}
+                            </p>
+
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {discussion.tags.map((tag: string, index: number) => (
+                                <Badge key={index} variant="secondary" className="text-xs">
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                                <div className="flex items-center space-x-2">
+                                  <Avatar className="w-6 h-6">
+                                    <AvatarFallback className="text-xs bg-gradient-primary text-white">
+                                      {discussion.authorAvatar}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span>{discussion.author}</span>
+                                </div>
+                                <div className="flex items-center">
+                                  <MessageCircle className="w-4 h-4 mr-1" />
+                                  {discussion.replies}
+                                </div>
+                                <div className="flex items-center">
+                                  <Eye className="w-4 h-4 mr-1" />
+                                  {discussion.views}
+                                </div>
+                                <div className="flex items-center">
+                                  <Clock className="w-4 h-4 mr-1" />
+                                  {discussion.lastActivity}
+                                </div>
+                              </div>
+
+                              <Badge variant="outline" className="text-xs capitalize">
+                                {discussion.category}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
               </TabsContent>
 
               <TabsContent value="popular" className="space-y-4">
