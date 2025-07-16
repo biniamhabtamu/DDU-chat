@@ -65,6 +65,7 @@ const Chat = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const chatRooms: ChatRoom[] = [
     { id: "general", name: "General", type: "public", members: 245, icon: Hash },
@@ -304,37 +305,33 @@ const Chat = () => {
                     >
                       <div className="flex items-center">
                         <Icon className="w-4 h-4 mr-2" />
-                        {sidebarOpen && <span className="font-medium">{room.name}</span>}
+                        <span className="font-medium">{room.name}</span>
                       </div>
-                      {sidebarOpen && (
-                        <div className="flex items-center">
-                          <Badge variant="outline" className="text-xs mr-2">
-                            {room.members}
-                          </Badge>
-                          {room.type === "public" ? (
-                            <Globe className="w-3 h-3 text-success" />
-                          ) : (
-                            <Lock className="w-3 h-3 text-warning" />
-                          )}
-                        </div>
-                      )}
+                      <div className="flex items-center">
+                        <Badge variant="outline" className="text-xs mr-2">
+                          {room.members}
+                        </Badge>
+                        {room.type === "public" ? (
+                          <Globe className="w-3 h-3 text-success" />
+                        ) : (
+                          <Lock className="w-3 h-3 text-warning" />
+                        )}
+                      </div>
                     </button>
                   );
                 })}
                 
-                {sidebarOpen && (
-                  <Button variant="outline" className="w-full mt-4">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Room
-                  </Button>
-                )}
+                <Button variant="outline" className="w-full mt-4">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Room
+                </Button>
               </CardContent>
             </Card>
           )}
         </div>
 
         {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col overflow-hidden">
           {/* Mobile Header - Only shown on small screens */}
           <div className="lg:hidden p-4 border-b flex items-center">
             <Button 
@@ -351,13 +348,13 @@ const Chat = () => {
           </div>
 
           {/* Desktop Header */}
-          <div className="hidden lg:block mb-8 p-4">
+          <div className="hidden lg:block p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gradient-primary mb-2">
+                <h1 className="text-2xl font-bold text-gradient-primary mb-1">
                   Real-Time Chat
                 </h1>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground text-sm">
                   Connect and collaborate with your fellow students
                 </p>
               </div>
@@ -368,72 +365,78 @@ const Chat = () => {
             </div>
           </div>
 
-          <Card className="flex-1 flex flex-col mx-4 lg:mx-0 mb-4 lg:mb-0">
-            <CardHeader className="border-b">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center">
-                    <Hash className="w-5 h-5 mr-2" />
-                    {chatRooms.find(room => room.id === activeChat)?.name}
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    {chatRooms.find(room => room.id === activeChat)?.members} members
-                  </p>
-                </div>
-                <Button variant="outline" size="sm">
-                  <Users className="w-4 h-4 mr-2" />
-                  Members
-                </Button>
-              </div>
-            </CardHeader>
-
-            {/* Messages */}
-            <CardContent className="flex-1 overflow-y-auto p-4">
-              {loading ? (
-                <div className="flex justify-center items-center h-full">
-                  <p>Loading messages...</p>
-                </div>
-              ) : messages.length === 0 ? (
-                <div className="flex justify-center items-center h-full">
-                  <p className="text-muted-foreground">No messages yet. Send the first message!</p>
-                </div>
-              ) : (
-                messages.map((msg) => (
-                  <MessageItem key={msg.id} msg={msg} />
-                ))
-              )}
-              <div ref={messagesEndRef} />
-            </CardContent>
-
-            {/* Message Input */}
-            <div className="p-4 border-t">
-              <div className="flex space-x-2">
-                <div className="flex-1 relative">
-                  <Input
-                    placeholder="Type your message..."
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                    className="pr-12"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-1 top-1/2 transform -translate-y-1/2"
-                  >
-                    <Smile className="w-4 h-4" />
+          {/* Chat Container - Fixed height with scrolling messages */}
+          <div 
+            ref={chatContainerRef}
+            className="flex-1 flex flex-col overflow-hidden mx-4 lg:mx-0 mb-4 lg:mb-0"
+          >
+            <Card className="flex flex-col h-full">
+              <CardHeader className="border-b">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center">
+                      <Hash className="w-5 h-5 mr-2" />
+                      {chatRooms.find(room => room.id === activeChat)?.name}
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      {chatRooms.find(room => room.id === activeChat)?.members} members
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    <Users className="w-4 h-4 mr-2" />
+                    Members
                   </Button>
                 </div>
-                <Button 
-                  onClick={handleSendMessage} 
-                  className="bg-gradient-primary"
-                  disabled={!message.trim()}
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
+              </CardHeader>
+
+              {/* Messages - Scrollable area */}
+              <CardContent className="flex-1 overflow-y-auto p-4">
+                {loading ? (
+                  <div className="flex justify-center items-center h-full">
+                    <p>Loading messages...</p>
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className="flex justify-center items-center h-full">
+                    <p className="text-muted-foreground">No messages yet. Send the first message!</p>
+                  </div>
+                ) : (
+                  messages.map((msg) => (
+                    <MessageItem key={msg.id} msg={msg} />
+                  ))
+                )}
+                <div ref={messagesEndRef} />
+              </CardContent>
+
+              {/* Fixed Message Input */}
+              <div className="p-4 border-t bg-background sticky bottom-0">
+                <div className="flex space-x-2">
+                  <div className="flex-1 relative">
+                    <Input
+                      placeholder="Type your message..."
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                      className="pr-12"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-1 top-1/2 transform -translate-y-1/2"
+                    >
+                      <Smile className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <Button 
+                    onClick={handleSendMessage} 
+                    className="bg-gradient-primary"
+                    disabled={!message.trim()}
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          </div>
         </div>
       </div>
     </div>
