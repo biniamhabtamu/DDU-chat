@@ -9,7 +9,8 @@ import {
   where,
   doc,
   updateDoc,
-  deleteDoc
+  deleteDoc,
+  getDocs
 } from "firebase/firestore";
 import { User, onAuthStateChanged } from "firebase/auth";
 import { db, auth } from "../lib/firebase";
@@ -33,6 +34,7 @@ import {
   Menu,
   X
 } from "lucide-react";
+import logo from "@/assets/dire-dev-logo.png";
 
 interface Message {
   id: string;
@@ -51,6 +53,7 @@ interface ChatRoom {
   type: string;
   members: number;
   icon: any;
+  createdAt: any;
 }
 
 const Chat = () => {
@@ -62,15 +65,21 @@ const Chat = () => {
   const [editingText, setEditingText] = useState("");
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showCreateRoomModal, setShowCreateRoomModal] = useState(false);
+  const [newRoomName, setNewRoomName] = useState("");
+  const [newRoomType, setNewRoomType] = useState("public");
+  const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
-  const chatRooms: ChatRoom[] = [
-    { id: "general", name: "General", type: "public", members: 245, icon: Hash },
-    { id: "programming", name: "Programming", type: "public", members: 189, icon: Hash },
-    { id: "mathematics", name: "Mathematics", type: "public", members: 156, icon: Hash },
-    { id: "engineering", name: "Engineering", type: "public", members: 98, icon: Hash },
-    { id: "study-group", name: "Study Group 2024", type: "private", members: 24, icon: Lock },
+  // Initialize with default rooms
+  const defaultRooms: ChatRoom[] = [
+    { id: "general", name: "General", type: "public", members: 245, icon: Hash, createdAt: new Date() },
+    { id: "programming", name: "Programming", type: "public", members: 189, icon: Hash, createdAt: new Date() },
+    { id: "mathematics", name: "Mathematics", type: "public", members: 156, icon: Hash, createdAt: new Date() },
+    { id: "engineering", name: "Engineering", type: "public", members: 98, icon: Hash, createdAt: new Date() },
+    { id: "study-group", name: "Study Group", type: "private", members: 24, icon: Lock, createdAt: new Date() },
   ];
 
   // Toggle sidebar
@@ -84,10 +93,13 @@ const Chat = () => {
       if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
         setSidebarOpen(false);
       }
+      if (modalRef.current && !modalRef.current.contains(event.target as Node) && showCreateRoomModal) {
+        setShowCreateRoomModal(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [showCreateRoomModal]);
 
   // Auth state listener
   useEffect(() => {
@@ -95,6 +107,35 @@ const Chat = () => {
       setUser(currentUser);
     });
     return () => unsubscribe();
+  }, []);
+
+  // Load chat rooms from Firestore
+  useEffect(() => {
+    const loadRooms = async () => {
+      try {
+        const roomsRef = collection(db, "rooms");
+        const q = query(roomsRef, orderBy("createdAt", "asc"));
+        const querySnapshot = await getDocs(q);
+        
+        const roomsData: ChatRoom[] = [];
+        querySnapshot.forEach((doc) => {
+          roomsData.push({
+            id: doc.id,
+            ...doc.data(),
+            createdAt: doc.data().createdAt?.toDate?.() || new Date()
+          } as ChatRoom);
+        });
+        
+        // Combine default rooms with Firestore rooms
+        const allRooms = [...defaultRooms, ...roomsData];
+        setChatRooms(allRooms);
+      } catch (error) {
+        console.error("Error loading rooms:", error);
+        setChatRooms(defaultRooms);
+      }
+    };
+
+    loadRooms();
   }, []);
 
   // Real-time messages listener
@@ -126,6 +167,39 @@ const Chat = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Create new chat room
+  const createNewRoom = async () => {
+    if (!newRoomName.trim()) return;
+
+    try {
+      // Add room to Firestore
+      const newRoomRef = await addDoc(collection(db, "rooms"), {
+        name: newRoomName,
+        type: newRoomType,
+        members: 0,
+        createdAt: serverTimestamp()
+      });
+      
+      // Add to local state
+      const newRoom: ChatRoom = {
+        id: newRoomRef.id,
+        name: newRoomName,
+        type: newRoomType,
+        members: 0,
+        icon: newRoomType === "public" ? Globe : Lock,
+        createdAt: new Date()
+      };
+      
+      setChatRooms([...chatRooms, newRoom]);
+      setActiveChat(newRoomRef.id);
+      setShowCreateRoomModal(false);
+      setNewRoomName("");
+      setNewRoomType("public");
+    } catch (error) {
+      console.error("Error creating room:", error);
+    }
+  };
 
   const handleSendMessage = async () => {
     if (!message.trim() || !user) return;
@@ -186,6 +260,10 @@ const Chat = () => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
   const MessageItem = ({ msg }: { msg: Message }) => {
     const isCurrentUser = user?.uid === msg.userId;
     
@@ -235,9 +313,92 @@ const Chat = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950">
+      {/* Create Room Modal */}
+      {showCreateRoomModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div 
+            ref={modalRef}
+            className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md shadow-2xl animate-in fade-in zoom-in"
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Create New Room</h3>
+              <button 
+                onClick={() => setShowCreateRoomModal(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Room Name
+                </label>
+                <Input
+                  placeholder="Enter room name"
+                  value={newRoomName}
+                  onChange={(e) => setNewRoomName(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Room Type
+                </label>
+                <div className="flex space-x-4">
+                  <button
+                    onClick={() => setNewRoomType("public")}
+                    className={`flex-1 py-2 px-4 rounded-lg border ${
+                      newRoomType === "public"
+                        ? "bg-blue-50 border-blue-500 text-blue-700"
+                        : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-center">
+                      <Globe className="w-4 h-4 mr-2" />
+                      Public
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setNewRoomType("private")}
+                    className={`flex-1 py-2 px-4 rounded-lg border ${
+                      newRoomType === "private"
+                        ? "bg-blue-50 border-blue-500 text-blue-700"
+                        : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-center">
+                      <Lock className="w-4 h-4 mr-2" />
+                      Private
+                    </div>
+                  </button>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3 pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowCreateRoomModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={createNewRoom}
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
+                >
+                  Create Room
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 bg-background z-20 p-4 border-b flex justify-between items-center shadow-sm">
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-white dark:bg-gray-900 z-20 p-4 border-b dark:border-gray-800 flex justify-between items-center shadow-sm">
         <div className="flex items-center">
           <Button 
             variant="ghost" 
@@ -261,15 +422,17 @@ const Chat = () => {
         {/* Fixed Sidebar */}
         <div 
           ref={sidebarRef}
-          className={`fixed lg:sticky top-0 left-0 h-screen z-20 bg-background border-r transform ${
+          className={`fixed lg:sticky top-0 left-0 h-screen z-20 bg-white dark:bg-gray-900 border-r dark:border-gray-800 transform ${
             sidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 lg:w-64'
-          } transition-all duration-300 ease-in-out lg:block`}
+          } transition-all duration-300 ease-in-out lg:block shadow-lg lg:shadow-none`}
         >
           {/* Sidebar Header */}
-          <div className="p-4 border-b flex items-center">
+          <div className="p-4 border-b dark:border-gray-800 flex items-center">
             <div className="flex items-center">
-              <MessageCircle className="w-6 h-6 mr-2 text-blue-500" />
-              <h2 className="text-xl font-bold">Chat Rooms</h2>
+              <img src={logo} alt="Logo" className="h-8 mr-3" />
+              <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Dire-Dev
+              </h2>
             </div>
             <Button 
               variant="ghost" 
@@ -284,13 +447,25 @@ const Chat = () => {
           {/* Sidebar Content */}
           <div className="h-[calc(100vh-65px)] overflow-y-auto p-4">
             <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input placeholder="Search rooms..." className="pl-10" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input 
+                placeholder="Search rooms..." 
+                className="pl-10 bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+              />
             </div>
             
             <div className="space-y-2">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Chat Rooms
+                </h3>
+                <span className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-full">
+                  {chatRooms.length}
+                </span>
+              </div>
+              
               {chatRooms.map((room) => {
-                const Icon = room.icon;
+                const Icon = room.type === "public" ? Globe : Lock;
                 return (
                   <button
                     key={room.id}
@@ -305,11 +480,11 @@ const Chat = () => {
                     }`}
                   >
                     <div className="flex items-center">
-                      <Icon className="w-4 h-4 mr-2" />
-                      <span className="font-medium">{room.name}</span>
+                      <Icon className="w-4 h-4 mr-3" />
+                      <span className="font-medium truncate max-w-[120px]">{room.name}</span>
                     </div>
                     <div className="flex items-center">
-                      <Badge variant="outline" className="text-xs mr-2">
+                      <Badge variant="outline" className="text-xs mr-2 bg-white dark:bg-gray-800">
                         {room.members}
                       </Badge>
                       {room.type === "public" ? (
@@ -322,28 +497,32 @@ const Chat = () => {
                 );
               })}
               
-              <Button variant="outline" className="w-full mt-4">
+              <Button 
+                variant="outline" 
+                className="w-full mt-6 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-dashed border-gray-300 dark:border-gray-700"
+                onClick={() => setShowCreateRoomModal(true)}
+              >
                 <Plus className="w-4 h-4 mr-2" />
-                Create Room
+                Create New Room
               </Button>
             </div>
           </div>
         </div>
 
         {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col ml-0 lg:ml-64 transition-all duration-300">
+        <div className="flex-1 flex flex-col ml-0 lg:ml-64 transition-all duration-300 min-h-screen">
           {/* Desktop Header */}
-          <div className="hidden lg:block p-4 border-b">
+          <div className="hidden lg:block p-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-900">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-gradient-primary mb-1">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                   Real-Time Chat
                 </h1>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-gray-600 dark:text-gray-300">
                   Connect and collaborate with your fellow students
                 </p>
               </div>
-              <Badge variant="secondary" className="px-4 py-2">
+              <Badge variant="secondary" className="px-4 py-2 bg-white dark:bg-gray-800">
                 <Users className="w-4 h-4 mr-2" />
                 {chatRooms.find(room => room.id === activeChat)?.members} Online
               </Badge>
@@ -353,20 +532,24 @@ const Chat = () => {
           {/* Chat Container */}
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Room Header */}
-            <div className="p-4 border-b">
+            <div className="p-4 border-b dark:border-gray-800 bg-white dark:bg-gray-900">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center">
-                    <Hash className="w-5 h-5 mr-2 text-blue-500" />
-                    <h1 className="text-xl font-semibold">
-                      {chatRooms.find(room => room.id === activeChat)?.name}
-                    </h1>
+                    <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded-lg mr-3">
+                      <Hash className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+                        {chatRooms.find(room => room.id === activeChat)?.name}
+                      </h1>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {chatRooms.find(room => room.id === activeChat)?.members} members
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {chatRooms.find(room => room.id === activeChat)?.members} members
-                  </p>
                 </div>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="bg-white dark:bg-gray-800">
                   <Users className="w-4 h-4 mr-2" />
                   Members
                 </Button>
@@ -374,54 +557,68 @@ const Chat = () => {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-4 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
               {loading ? (
                 <div className="flex justify-center items-center h-full">
                   <div className="text-center">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mx-auto mb-3"></div>
-                    <p>Loading messages...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                    <p className="text-gray-600 dark:text-gray-300">Loading messages...</p>
                   </div>
                 </div>
               ) : messages.length === 0 ? (
                 <div className="flex justify-center items-center h-full">
-                  <div className="text-center">
-                    <MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-muted-foreground">No messages yet. Send the first message!</p>
+                  <div className="text-center max-w-md p-8 bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
+                    <MessageCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                      No messages yet
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-300 mb-4">
+                      Be the first to send a message in this room!
+                    </p>
+                    <Button 
+                      className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
+                      onClick={() => document.getElementById("messageInput")?.focus()}
+                    >
+                      Send First Message
+                    </Button>
                   </div>
                 </div>
               ) : (
-                messages.map((msg) => (
-                  <MessageItem key={msg.id} msg={msg} />
-                ))
+                <div className="space-y-6">
+                  {messages.map((msg) => (
+                    <MessageItem key={msg.id} msg={msg} />
+                  ))}
+                </div>
               )}
               <div ref={messagesEndRef} />
             </div>
 
             {/* Fixed Message Input */}
-            <div className="p-4 border-t bg-background sticky bottom-0">
+            <div className="p-4 border-t dark:border-gray-800 bg-white dark:bg-gray-900 sticky bottom-0 shadow-lg">
               <div className="flex space-x-2">
                 <div className="flex-1 relative">
                   <Input
+                    id="messageInput"
                     placeholder="Type your message..."
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                    className="pr-12"
+                    className="pr-12 py-5 bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
                   />
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="absolute right-1 top-1/2 transform -translate-y-1/2"
+                    className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-500"
                   >
-                    <Smile className="w-4 h-4" />
+                    <Smile className="w-5 h-5" />
                   </Button>
                 </div>
                 <Button 
                   onClick={handleSendMessage} 
-                  className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white py-5"
                   disabled={!message.trim()}
                 >
-                  <Send className="w-4 h-4" />
+                  <Send className="w-5 h-5" />
                 </Button>
               </div>
             </div>
@@ -433,7 +630,7 @@ const Chat = () => {
       {!sidebarOpen && (
         <button
           onClick={toggleSidebar}
-          className="fixed bottom-4 left-4 lg:hidden z-30 bg-blue-500 text-white rounded-full p-3 shadow-lg hover:bg-blue-600 transition-all"
+          className="fixed bottom-6 right-6 lg:hidden z-30 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full p-4 shadow-lg hover:from-blue-600 hover:to-purple-600 transition-all transform hover:scale-105"
         >
           <MessageCircle className="h-6 w-6" />
         </button>
