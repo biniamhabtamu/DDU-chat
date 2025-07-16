@@ -1,4 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { 
+  collection, 
+  query, 
+  orderBy, 
+  onSnapshot, 
+  addDoc, 
+  serverTimestamp,
+  where,
+  doc,
+  updateDoc,
+  deleteDoc,
+  Timestamp
+} from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
+import { User } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,68 +28,148 @@ import {
   Hash,
   Globe,
   Lock,
-  Smile
+  Smile,
+  Edit,
+  Trash2
 } from "lucide-react";
 
+interface Message {
+  id: string;
+  text: string;
+  userId: string;
+  userName: string;
+  userAvatar: string;
+  createdAt: Timestamp;
+  isEdited?: boolean;
+}
+
+interface ChatRoom {
+  id: string;
+  name: string;
+  type: string;
+  members: number;
+  icon: any;
+}
+
 const Chat = () => {
+  const [user, setUser] = useState<User | null>(null);
   const [activeChat, setActiveChat] = useState("general");
   const [message, setMessage] = useState("");
-
-  const chatRooms = [
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState("");
+  const [chatRooms] = useState<ChatRoom[]>([
     { id: "general", name: "General", type: "public", members: 245, icon: Hash },
     { id: "programming", name: "Programming", type: "public", members: 189, icon: Hash },
     { id: "mathematics", name: "Mathematics", type: "public", members: 156, icon: Hash },
     { id: "engineering", name: "Engineering", type: "public", members: 98, icon: Hash },
     { id: "study-group", name: "Study Group 2024", type: "private", members: 24, icon: Lock },
-  ];
+  ]);
 
-  const messages = [
-    {
-      id: 1,
-      user: "Ahmed Hassan",
-      avatar: "AH",
-      message: "Hey everyone! Anyone working on the React project?",
-      time: "2:30 PM",
-      isOnline: true
-    },
-    {
-      id: 2,
-      user: "Sara Mohammed",
-      avatar: "SM",
-      message: "Yes! I'm stuck on the authentication part. Can someone help?",
-      time: "2:32 PM",
-      isOnline: true
-    },
-    {
-      id: 3,
-      user: "David Wilson",
-      avatar: "DW",
-      message: "I can help with that! Firebase Auth is pretty straightforward once you get the hang of it.",
-      time: "2:35 PM",
-      isOnline: false
-    },
-    {
-      id: 4,
-      user: "Meron Tadesse",
-      avatar: "MT",
-      message: "Here's a helpful tutorial I found: https://firebase.google.com/docs/auth",
-      time: "2:37 PM",
-      isOnline: true
-    }
-  ];
+  // Listen for auth state changes
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(user => {
+      setUser(user);
+    });
+    
+    return () => unsubscribe();
+  }, []);
 
-  const onlineUsers = [
-    { name: "Ahmed Hassan", avatar: "AH", status: "coding" },
-    { name: "Sara Mohammed", avatar: "SM", status: "studying" },
-    { name: "Meron Tadesse", avatar: "MT", status: "available" },
-    { name: "John Doe", avatar: "JD", status: "in meeting" },
-  ];
+  // Fetch messages in real-time
+  useEffect(() => {
+    if (!activeChat) return;
 
-  const handleSendMessage = () => {
-    if (message.trim()) {
-      // Here you would typically send the message to Firebase
-      console.log("Sending message:", message);
+    const messagesRef = collection(db, "messages");
+    const q = query(
+      messagesRef,
+      where("roomId", "==", activeChat),
+      orderBy("createdAt", "asc")
+    );
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const messagesData: Message[] = [];
+      querySnapshot.forEach((doc) => {
+        messagesData.push({
+          id: doc.id,
+          text: doc.data().text,
+          userId: doc.data().userId,
+          userName: doc.data().userName,
+          userAvatar: doc.data().userAvatar,
+          createdAt: doc.data().createdAt,
+          isEdited: doc.data().isEdited || false
+        });
+      });
+      setMessages(messagesData);
+    });
+
+    return () => unsubscribe();
+  }, [activeChat]);
+
+  const handleSendMessage = async () => {
+    if (!message.trim() || !user) return;
+
+    try {
+      await addDoc(collection(db, "messages"), {
+        text: message,
+        userId: user.uid,
+        userName: user.displayName || "Anonymous",
+        userAvatar: user.displayName?.substring(0, 2) || "AN",
+        roomId: activeChat,
+        createdAt: serverTimestamp(),
+        isEdited: false
+      });
       setMessage("");
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
+  };
+
+  const startEditing = (msg: Message) => {
+    setEditingMessageId(msg.id);
+    setEditingText(msg.text);
+  };
+
+  const cancelEditing = () => {
+    setEditingMessageId(null);
+    setEditingText("");
+  };
+
+  const updateMessage = async () => {
+    if (!editingMessageId) return;
+
+    try {
+      await updateDoc(doc(db, "messages", editingMessageId), {
+        text: editingText,
+        isEdited: true,
+        createdAt: serverTimestamp()
+      });
+      setEditingMessageId(null);
+      setEditingText("");
+    } catch (error) {
+      console.error("Error updating message:", error);
+    }
+  };
+
+  const deleteMessage = async (messageId: string) => {
+    if (window.confirm("Are you sure you want to delete this message?")) {
+      try {
+        await deleteDoc(doc(db, "messages", messageId));
+      } catch (error) {
+        console.error("Error deleting message:", error);
+      }
+    }
+  };
+
+  const formatTime = (timestamp: Timestamp | null) => {
+    if (!timestamp) return "";
+    try {
+      return timestamp.toDate().toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    } catch (e) {
+      console.error("Error formatting timestamp:", e);
+      return "";
     }
   };
 
@@ -94,7 +189,7 @@ const Chat = () => {
             </div>
             <Badge variant="secondary" className="px-4 py-2">
               <Users className="w-4 h-4 mr-2" />
-              {onlineUsers.length} Online
+              {chatRooms.find(room => room.id === activeChat)?.members} Online
             </Badge>
           </div>
         </div>
@@ -155,31 +250,6 @@ const Chat = () => {
                 </Button>
               </CardContent>
             </Card>
-
-            {/* Online Users */}
-            <Card className="mt-4">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Online Now</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {onlineUsers.map((user, index) => (
-                  <div key={index} className="flex items-center space-x-3">
-                    <div className="relative">
-                      <Avatar className="w-8 h-8">
-                        <AvatarFallback className="text-xs bg-gradient-primary text-white">
-                          {user.avatar}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-success rounded-full border-2 border-background"></div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{user.name}</p>
-                      <p className="text-xs text-muted-foreground">{user.status}</p>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
           </div>
 
           {/* Main Chat Area */}
@@ -206,25 +276,65 @@ const Chat = () => {
               {/* Messages */}
               <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.map((msg) => (
-                  <div key={msg.id} className="flex space-x-3">
+                  <div key={msg.id} className="flex space-x-3 group">
                     <div className="relative">
                       <Avatar className="w-10 h-10">
                         <AvatarFallback className="bg-gradient-primary text-white">
-                          {msg.avatar}
+                          {msg.userAvatar}
                         </AvatarFallback>
                       </Avatar>
-                      {msg.isOnline && (
-                        <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-success rounded-full border-2 border-background"></div>
-                      )}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-1">
-                        <span className="font-medium text-sm">{msg.user}</span>
-                        <span className="text-xs text-muted-foreground">{msg.time}</span>
+                        <span className="font-medium text-sm">{msg.userName}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatTime(msg.createdAt)}
+                          {msg.isEdited && <span className="ml-1">(edited)</span>}
+                        </span>
                       </div>
-                      <div className="bg-muted/50 rounded-lg p-3 max-w-2xl">
-                        <p className="text-sm">{msg.message}</p>
-                      </div>
+                      {editingMessageId === msg.id ? (
+                        <div className="flex flex-col space-y-2">
+                          <Input
+                            value={editingText}
+                            onChange={(e) => setEditingText(e.target.value)}
+                            className="w-full"
+                          />
+                          <div className="flex space-x-2">
+                            <Button size="sm" onClick={updateMessage}>
+                              Save
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={cancelEditing}>
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <div className="bg-muted/50 rounded-lg p-3 max-w-2xl">
+                            <p className="text-sm">{msg.text}</p>
+                          </div>
+                          {user?.uid === msg.userId && (
+                            <div className="absolute right-0 top-0 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="w-6 h-6"
+                                onClick={() => startEditing(msg)}
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="w-6 h-6 text-red-500"
+                                onClick={() => deleteMessage(msg.id)}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -249,7 +359,11 @@ const Chat = () => {
                       <Smile className="w-4 h-4" />
                     </Button>
                   </div>
-                  <Button onClick={handleSendMessage} className="bg-gradient-primary">
+                  <Button 
+                    onClick={handleSendMessage} 
+                    className="bg-gradient-primary"
+                    disabled={!message.trim()}
+                  >
                     <Send className="w-4 h-4" />
                   </Button>
                 </div>
