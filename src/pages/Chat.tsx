@@ -33,7 +33,6 @@ import {
   Menu,
   X
 } from "lucide-react";
-import logo from "@/assets/dire-dev-logo.png";
 
 interface Message {
   id: string;
@@ -65,7 +64,6 @@ const Chat = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const chatRooms: ChatRoom[] = [
     { id: "general", name: "General", type: "public", members: 245, icon: Hash },
@@ -238,117 +236,104 @@ const Chat = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="flex h-screen">
-        {/* Collapsible Sidebar */}
+      {/* Mobile Header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-background z-20 p-4 border-b flex justify-between items-center shadow-sm">
+        <div className="flex items-center">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={toggleSidebar}
+            className="mr-2"
+          >
+            {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+          <h1 className="text-lg font-semibold truncate">
+            {chatRooms.find(room => room.id === activeChat)?.name}
+          </h1>
+        </div>
+        <Badge variant="secondary" className="px-3 py-1">
+          <Users className="w-4 h-4 mr-1" />
+          {chatRooms.find(room => room.id === activeChat)?.members}
+        </Badge>
+      </div>
+
+      <div className="flex pt-16 lg:pt-0">
+        {/* Fixed Sidebar */}
         <div 
           ref={sidebarRef}
-          className={`flex flex-col h-full ${
-            sidebarOpen ? 'w-64' : 'w-16'
-          } transition-all duration-300 bg-background border-r z-20`}
+          className={`fixed lg:sticky top-0 left-0 h-screen z-20 bg-background border-r transform ${
+            sidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 lg:w-64'
+          } transition-all duration-300 ease-in-out lg:block`}
         >
           {/* Sidebar Header */}
-          <div className={`p-4 border-b flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'}`}>
-            {sidebarOpen ? (
-              <>
-                <div className="flex items-center">
-                  <img src={logo} alt="Dire-Dev Logo" className="h-8 mr-2" />
-                  <h2 className="text-xl font-bold">Dire-Dev</h2>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={toggleSidebar}
-                  className="lg:hidden"
-                >
-                  <X className="h-5 w-5" />
-                </Button>
-              </>
-            ) : (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={toggleSidebar}
-              >
-                <MessageCircle className="h-5 w-5" />
-              </Button>
-            )}
-          </div>
-          
-          {/* Sidebar Content */}
-          {sidebarOpen && (
-            <Card className="flex-1 rounded-none border-0">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center">
-                  <MessageCircle className="w-5 h-5 mr-2" />
-                  Chat Rooms
-                </CardTitle>
-                <div className="relative mt-2">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input placeholder="Search rooms..." className="pl-10" />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {chatRooms.map((room) => {
-                  const Icon = room.icon;
-                  return (
-                    <button
-                      key={room.id}
-                      onClick={() => {
-                        setActiveChat(room.id);
-                        setSidebarOpen(false);
-                      }}
-                      className={`w-full text-left p-3 rounded-lg transition-all duration-200 flex items-center justify-between ${
-                        activeChat === room.id
-                          ? "bg-primary/10 text-primary border border-primary/20"
-                          : "hover:bg-muted/50"
-                      }`}
-                    >
-                      <div className="flex items-center">
-                        <Icon className="w-4 h-4 mr-2" />
-                        <span className="font-medium">{room.name}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Badge variant="outline" className="text-xs mr-2">
-                          {room.members}
-                        </Badge>
-                        {room.type === "public" ? (
-                          <Globe className="w-3 h-3 text-success" />
-                        ) : (
-                          <Lock className="w-3 h-3 text-warning" />
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-                
-                <Button variant="outline" className="w-full mt-4">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Room
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Mobile Header - Only shown on small screens */}
-          <div className="lg:hidden p-4 border-b flex items-center">
+          <div className="p-4 border-b flex items-center">
+            <div className="flex items-center">
+              <MessageCircle className="w-6 h-6 mr-2 text-blue-500" />
+              <h2 className="text-xl font-bold">Chat Rooms</h2>
+            </div>
             <Button 
               variant="ghost" 
               size="icon" 
               onClick={toggleSidebar}
-              className="mr-2"
+              className="lg:hidden ml-auto"
             >
-              {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              <X className="h-5 w-5" />
             </Button>
-            <h1 className="text-lg font-semibold truncate">
-              {chatRooms.find(room => room.id === activeChat)?.name}
-            </h1>
           </div>
+          
+          {/* Sidebar Content */}
+          <div className="h-[calc(100vh-65px)] overflow-y-auto p-4">
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input placeholder="Search rooms..." className="pl-10" />
+            </div>
+            
+            <div className="space-y-2">
+              {chatRooms.map((room) => {
+                const Icon = room.icon;
+                return (
+                  <button
+                    key={room.id}
+                    onClick={() => {
+                      setActiveChat(room.id);
+                      setSidebarOpen(false);
+                    }}
+                    className={`w-full text-left p-3 rounded-lg transition-all duration-200 flex items-center justify-between ${
+                      activeChat === room.id
+                        ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700"
+                        : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                    }`}
+                  >
+                    <div className="flex items-center">
+                      <Icon className="w-4 h-4 mr-2" />
+                      <span className="font-medium">{room.name}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Badge variant="outline" className="text-xs mr-2">
+                        {room.members}
+                      </Badge>
+                      {room.type === "public" ? (
+                        <Globe className="w-3 h-3 text-green-500" />
+                      ) : (
+                        <Lock className="w-3 h-3 text-yellow-500" />
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+              
+              <Button variant="outline" className="w-full mt-4">
+                <Plus className="w-4 h-4 mr-2" />
+                Create Room
+              </Button>
+            </div>
+          </div>
+        </div>
 
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col ml-0 lg:ml-64 transition-all duration-300">
           {/* Desktop Header */}
-          <div className="hidden lg:block p-4">
+          <div className="hidden lg:block p-4 border-b">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-gradient-primary mb-1">
@@ -365,80 +350,94 @@ const Chat = () => {
             </div>
           </div>
 
-          {/* Chat Container - Fixed height with scrolling messages */}
-          <div 
-            ref={chatContainerRef}
-            className="flex-1 flex flex-col overflow-hidden mx-4 lg:mx-0 mb-4 lg:mb-0"
-          >
-            <Card className="flex flex-col h-full">
-              <CardHeader className="border-b">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center">
-                      <Hash className="w-5 h-5 mr-2" />
+          {/* Chat Container */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Room Header */}
+            <div className="p-4 border-b">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center">
+                    <Hash className="w-5 h-5 mr-2 text-blue-500" />
+                    <h1 className="text-xl font-semibold">
                       {chatRooms.find(room => room.id === activeChat)?.name}
-                    </CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      {chatRooms.find(room => room.id === activeChat)?.members} members
-                    </p>
+                    </h1>
                   </div>
-                  <Button variant="outline" size="sm">
-                    <Users className="w-4 h-4 mr-2" />
-                    Members
-                  </Button>
+                  <p className="text-sm text-muted-foreground">
+                    {chatRooms.find(room => room.id === activeChat)?.members} members
+                  </p>
                 </div>
-              </CardHeader>
+                <Button variant="outline" size="sm">
+                  <Users className="w-4 h-4 mr-2" />
+                  Members
+                </Button>
+              </div>
+            </div>
 
-              {/* Messages - Scrollable area */}
-              <CardContent className="flex-1 overflow-y-auto p-4">
-                {loading ? (
-                  <div className="flex justify-center items-center h-full">
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {loading ? (
+                <div className="flex justify-center items-center h-full">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mx-auto mb-3"></div>
                     <p>Loading messages...</p>
                   </div>
-                ) : messages.length === 0 ? (
-                  <div className="flex justify-center items-center h-full">
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="flex justify-center items-center h-full">
+                  <div className="text-center">
+                    <MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                     <p className="text-muted-foreground">No messages yet. Send the first message!</p>
                   </div>
-                ) : (
-                  messages.map((msg) => (
-                    <MessageItem key={msg.id} msg={msg} />
-                  ))
-                )}
-                <div ref={messagesEndRef} />
-              </CardContent>
+                </div>
+              ) : (
+                messages.map((msg) => (
+                  <MessageItem key={msg.id} msg={msg} />
+                ))
+              )}
+              <div ref={messagesEndRef} />
+            </div>
 
-              {/* Fixed Message Input */}
-              <div className="p-4 border-t bg-background sticky bottom-0">
-                <div className="flex space-x-2">
-                  <div className="flex-1 relative">
-                    <Input
-                      placeholder="Type your message..."
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                      className="pr-12"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-1 top-1/2 transform -translate-y-1/2"
-                    >
-                      <Smile className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <Button 
-                    onClick={handleSendMessage} 
-                    className="bg-gradient-primary"
-                    disabled={!message.trim()}
+            {/* Fixed Message Input */}
+            <div className="p-4 border-t bg-background sticky bottom-0">
+              <div className="flex space-x-2">
+                <div className="flex-1 relative">
+                  <Input
+                    placeholder="Type your message..."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                    className="pr-12"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-1 top-1/2 transform -translate-y-1/2"
                   >
-                    <Send className="w-4 h-4" />
+                    <Smile className="w-4 h-4" />
                   </Button>
                 </div>
+                <Button 
+                  onClick={handleSendMessage} 
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
+                  disabled={!message.trim()}
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
               </div>
-            </Card>
+            </div>
           </div>
         </div>
       </div>
+      
+      {/* Mobile Sidebar Toggle */}
+      {!sidebarOpen && (
+        <button
+          onClick={toggleSidebar}
+          className="fixed bottom-4 left-4 lg:hidden z-30 bg-blue-500 text-white rounded-full p-3 shadow-lg hover:bg-blue-600 transition-all"
+        >
+          <MessageCircle className="h-6 w-6" />
+        </button>
+      )}
     </div>
   );
 };
