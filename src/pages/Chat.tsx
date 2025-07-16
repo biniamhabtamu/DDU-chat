@@ -630,7 +630,7 @@ const Chat = () => {
       {!sidebarOpen && (
         <button
           onClick={toggleSidebar}
-          className="fixed bottom-6 right-6 lg:hidden z-30 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full p-4 shadow-lg hover:from-blue-600 hover:to-purple-600 transition-all transform hover:scale-105"
+          className="fixed bottom-6 left-6 lg:hidden z-30 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full p-4 shadow-lg hover:from-blue-600 hover:to-purple-600 transition-all transform hover:scale-105"
         >
           <MessageCircle className="h-6 w-6" />
         </button>
