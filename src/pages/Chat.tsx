@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
   collection, 
   query, 
@@ -9,16 +9,15 @@ import {
   where,
   doc,
   updateDoc,
-  deleteDoc,
-  Timestamp
+  deleteDoc
 } from "firebase/firestore";
-import { db, auth } from "@/lib/firebase";
-import { User } from "firebase/auth";
+import { User, onAuthStateChanged } from "firebase/auth";
+import { db, auth } from "../lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   MessageCircle, 
   Users, 
@@ -39,8 +38,9 @@ interface Message {
   userId: string;
   userName: string;
   userAvatar: string;
-  createdAt: Timestamp;
+  createdAt: any;
   isEdited?: boolean;
+  roomId: string;
 }
 
 interface ChatRoom {
@@ -58,27 +58,30 @@ const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
-  const [chatRooms] = useState<ChatRoom[]>([
+  const [loading, setLoading] = useState(true);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const chatRooms: ChatRoom[] = [
     { id: "general", name: "General", type: "public", members: 245, icon: Hash },
     { id: "programming", name: "Programming", type: "public", members: 189, icon: Hash },
     { id: "mathematics", name: "Mathematics", type: "public", members: 156, icon: Hash },
     { id: "engineering", name: "Engineering", type: "public", members: 98, icon: Hash },
     { id: "study-group", name: "Study Group 2024", type: "private", members: 24, icon: Lock },
-  ]);
+  ];
 
-  // Listen for auth state changes
+  // Auth state listener
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(user => {
-      setUser(user);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
     });
-    
     return () => unsubscribe();
   }, []);
 
-  // Fetch messages in real-time
+  // Real-time messages listener
   useEffect(() => {
     if (!activeChat) return;
 
+    setLoading(true);
     const messagesRef = collection(db, "messages");
     const q = query(
       messagesRef,
@@ -86,24 +89,23 @@ const Chat = () => {
       orderBy("createdAt", "asc")
     );
 
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const messagesData: Message[] = [];
-      querySnapshot.forEach((doc) => {
-        messagesData.push({
-          id: doc.id,
-          text: doc.data().text,
-          userId: doc.data().userId,
-          userName: doc.data().userName,
-          userAvatar: doc.data().userAvatar,
-          createdAt: doc.data().createdAt,
-          isEdited: doc.data().isEdited || false
-        });
-      });
-      setMessages(messagesData);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.() || new Date()
+      })) as Message[];
+      setMessages(msgs);
+      setLoading(false);
     });
 
     return () => unsubscribe();
   }, [activeChat]);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const handleSendMessage = async () => {
     if (!message.trim() || !user) return;
@@ -160,17 +162,54 @@ const Chat = () => {
     }
   };
 
-  const formatTime = (timestamp: Timestamp | null) => {
-    if (!timestamp) return "";
-    try {
-      return timestamp.toDate().toLocaleTimeString([], { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      });
-    } catch (e) {
-      console.error("Error formatting timestamp:", e);
-      return "";
-    }
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const MessageItem = ({ msg }: { msg: Message }) => {
+    const isCurrentUser = user?.uid === msg.userId;
+    
+    return (
+      <div className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+        <div className={`max-w-xs md:max-w-md rounded-lg p-3 ${
+          isCurrentUser 
+            ? 'bg-blue-500 text-white' 
+            : 'bg-gray-200 text-gray-800'
+        }`}>
+          <div className="flex items-center space-x-2">
+            <Avatar className="w-6 h-6">
+              <AvatarFallback className="text-xs">
+                {msg.userAvatar}
+              </AvatarFallback>
+            </Avatar>
+            <span className="font-medium">{msg.userName}</span>
+          </div>
+          <div className="mt-1">{msg.text}</div>
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-xs opacity-70">
+              {formatTime(new Date(msg.createdAt))}
+              {msg.isEdited && <span className="ml-1">(edited)</span>}
+            </span>
+            {isCurrentUser && (
+              <div className="flex space-x-2">
+                <button 
+                  onClick={() => startEditing(msg)} 
+                  className="text-xs underline"
+                >
+                  Edit
+                </button>
+                <button 
+                  onClick={() => deleteMessage(msg.id)} 
+                  className="text-xs underline text-red-500"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -275,69 +314,20 @@ const Chat = () => {
 
               {/* Messages */}
               <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
-                {messages.map((msg) => (
-                  <div key={msg.id} className="flex space-x-3 group">
-                    <div className="relative">
-                      <Avatar className="w-10 h-10">
-                        <AvatarFallback className="bg-gradient-primary text-white">
-                          {msg.userAvatar}
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <span className="font-medium text-sm">{msg.userName}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatTime(msg.createdAt)}
-                          {msg.isEdited && <span className="ml-1">(edited)</span>}
-                        </span>
-                      </div>
-                      {editingMessageId === msg.id ? (
-                        <div className="flex flex-col space-y-2">
-                          <Input
-                            value={editingText}
-                            onChange={(e) => setEditingText(e.target.value)}
-                            className="w-full"
-                          />
-                          <div className="flex space-x-2">
-                            <Button size="sm" onClick={updateMessage}>
-                              Save
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={cancelEditing}>
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="relative">
-                          <div className="bg-muted/50 rounded-lg p-3 max-w-2xl">
-                            <p className="text-sm">{msg.text}</p>
-                          </div>
-                          {user?.uid === msg.userId && (
-                            <div className="absolute right-0 top-0 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="w-6 h-6"
-                                onClick={() => startEditing(msg)}
-                              >
-                                <Edit className="w-3 h-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="w-6 h-6 text-red-500"
-                                onClick={() => deleteMessage(msg.id)}
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                {loading ? (
+                  <div className="flex justify-center items-center h-full">
+                    <p>Loading messages...</p>
                   </div>
-                ))}
+                ) : messages.length === 0 ? (
+                  <div className="flex justify-center items-center h-full">
+                    <p className="text-muted-foreground">No messages yet. Send the first message!</p>
+                  </div>
+                ) : (
+                  messages.map((msg) => (
+                    <MessageItem key={msg.id} msg={msg} />
+                  ))
+                )}
+                <div ref={messagesEndRef} />
               </CardContent>
 
               {/* Message Input */}
