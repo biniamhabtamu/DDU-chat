@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   MessageCircle, 
   Users, 
@@ -29,7 +29,9 @@ import {
   Lock,
   Smile,
   Edit,
-  Trash2
+  Trash2,
+  Menu,
+  X
 } from "lucide-react";
 
 interface Message {
@@ -59,6 +61,7 @@ const Chat = () => {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
   const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const chatRooms: ChatRoom[] = [
@@ -68,6 +71,23 @@ const Chat = () => {
     { id: "engineering", name: "Engineering", type: "public", members: 98, icon: Hash },
     { id: "study-group", name: "Study Group 2024", type: "private", members: 24, icon: Lock },
   ];
+
+  // Toggle sidebar on mobile
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
+  // Close sidebar when clicking outside on mobile
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+        setSidebarOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Auth state listener
   useEffect(() => {
@@ -102,7 +122,7 @@ const Chat = () => {
     return () => unsubscribe();
   }, [activeChat]);
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -126,240 +146,224 @@ const Chat = () => {
     }
   };
 
-  const startEditing = (msg: Message) => {
-    setEditingMessageId(msg.id);
-    setEditingText(msg.text);
-  };
-
-  const cancelEditing = () => {
-    setEditingMessageId(null);
-    setEditingText("");
-  };
-
-  const updateMessage = async () => {
-    if (!editingMessageId) return;
-
-    try {
-      await updateDoc(doc(db, "messages", editingMessageId), {
-        text: editingText,
-        isEdited: true,
-        createdAt: serverTimestamp()
-      });
-      setEditingMessageId(null);
-      setEditingText("");
-    } catch (error) {
-      console.error("Error updating message:", error);
-    }
-  };
-
-  const deleteMessage = async (messageId: string) => {
-    if (window.confirm("Are you sure you want to delete this message?")) {
-      try {
-        await deleteDoc(doc(db, "messages", messageId));
-      } catch (error) {
-        console.error("Error deleting message:", error);
-      }
-    }
-  };
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
+  // Message component with improved styling
   const MessageItem = ({ msg }: { msg: Message }) => {
     const isCurrentUser = user?.uid === msg.userId;
     
     return (
-      <div className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
-        <div className={`max-w-xs md:max-w-md rounded-lg p-3 ${
+      <div className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4`}>
+        <div className={`flex max-w-xs md:max-w-md rounded-2xl p-3 ${
           isCurrentUser 
-            ? 'bg-blue-500 text-white' 
-            : 'bg-gray-200 text-gray-800'
+            ? 'bg-blue-500 text-white rounded-br-none' 
+            : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-none'
         }`}>
-          <div className="flex items-center space-x-2">
-            <Avatar className="w-6 h-6">
-              <AvatarFallback className="text-xs">
-                {msg.userAvatar}
-              </AvatarFallback>
-            </Avatar>
-            <span className="font-medium">{msg.userName}</span>
-          </div>
-          <div className="mt-1">{msg.text}</div>
-          <div className="flex items-center justify-between mt-1">
-            <span className="text-xs opacity-70">
-              {formatTime(new Date(msg.createdAt))}
-              {msg.isEdited && <span className="ml-1">(edited)</span>}
-            </span>
-            {isCurrentUser && (
-              <div className="flex space-x-2">
-                <button 
-                  onClick={() => startEditing(msg)} 
-                  className="text-xs underline"
-                >
-                  Edit
-                </button>
-                <button 
-                  onClick={() => deleteMessage(msg.id)} 
-                  className="text-xs underline text-red-500"
-                >
-                  Delete
-                </button>
-              </div>
-            )}
+          <div className="flex flex-col">
+            <div className="flex items-center space-x-2 mb-1">
+              <Avatar className="w-6 h-6">
+                <AvatarFallback className="text-xs">
+                  {msg.userAvatar}
+                </AvatarFallback>
+              </Avatar>
+              <span className="font-semibold">{msg.userName}</span>
+            </div>
+            <p className="text-sm">{msg.text}</p>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-xs opacity-70">
+                {formatTime(new Date(msg.createdAt))}
+                {msg.isEdited && <span className="ml-1">(edited)</span>}
+              </span>
+              {isCurrentUser && (
+                <div className="flex space-x-2 ml-2">
+                  <button 
+                    onClick={() => startEditing(msg)} 
+                    className="text-xs hover:underline"
+                  >
+                    <Edit className="w-3 h-3" />
+                  </button>
+                  <button 
+                    onClick={() => deleteMessage(msg.id)} 
+                    className="text-xs hover:underline text-red-500"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
     );
   };
 
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto p-4">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gradient-primary mb-2">
-                Real-Time Chat
-              </h1>
-              <p className="text-muted-foreground">
-                Connect and collaborate with your fellow students
-              </p>
-            </div>
-            <Badge variant="secondary" className="px-4 py-2">
-              <Users className="w-4 h-4 mr-2" />
-              {chatRooms.find(room => room.id === activeChat)?.members} Online
-            </Badge>
-          </div>
+      {/* Mobile Header with Menu Button */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-background z-10 p-4 border-b flex justify-between items-center">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={toggleSidebar}
+          className="text-gray-700 dark:text-gray-300"
+        >
+          {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </Button>
+        <h1 className="text-xl font-bold text-gradient-primary">
+          {chatRooms.find(room => room.id === activeChat)?.name}
+        </h1>
+        <div className="w-10"></div> {/* Spacer for alignment */}
+      </div>
+
+      <div className="flex pt-16 lg:pt-0">
+        {/* Sidebar - Hidden on mobile unless open */}
+        <div 
+          ref={sidebarRef}
+          className={`fixed lg:static inset-y-0 left-0 z-20 w-64 bg-background border-r transform ${
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          } lg:translate-x-0 transition-transform duration-300 ease-in-out`}
+        >
+          <Card className="h-full rounded-none border-0">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center">
+                <MessageCircle className="w-5 h-5 mr-2" />
+                Chat Rooms
+              </CardTitle>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input placeholder="Search rooms..." className="pl-10" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {chatRooms.map((room) => {
+                const Icon = room.icon;
+                return (
+                  <button
+                    key={room.id}
+                    onClick={() => {
+                      setActiveChat(room.id);
+                      setSidebarOpen(false);
+                    }}
+                    className={`w-full text-left p-3 rounded-lg transition-all duration-200 flex items-center justify-between ${
+                      activeChat === room.id
+                        ? "bg-primary/10 text-primary border border-primary/20"
+                        : "hover:bg-muted/50"
+                    }`}
+                  >
+                    <div className="flex items-center">
+                      <Icon className="w-4 h-4 mr-2" />
+                      <span className="font-medium">{room.name}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Badge variant="outline" className="text-xs mr-2">
+                        {room.members}
+                      </Badge>
+                      {room.type === "public" ? (
+                        <Globe className="w-3 h-3 text-success" />
+                      ) : (
+                        <Lock className="w-3 h-3 text-warning" />
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+              
+              <Button variant="outline" className="w-full mt-4">
+                <Plus className="w-4 h-4 mr-2" />
+                Create Room
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
-        <div className="grid lg:grid-cols-4 gap-6">
-          {/* Chat Rooms Sidebar */}
-          <div className="lg:col-span-1">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center">
-                  <MessageCircle className="w-5 h-5 mr-2" />
-                  Chat Rooms
-                </CardTitle>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input placeholder="Search rooms..." className="pl-10" />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {chatRooms.map((room) => {
-                  const Icon = room.icon;
-                  return (
-                    <button
-                      key={room.id}
-                      onClick={() => setActiveChat(room.id)}
-                      className={`w-full text-left p-3 rounded-lg transition-all duration-200 ${
-                        activeChat === room.id
-                          ? "bg-primary/10 text-primary border border-primary/20"
-                          : "hover:bg-muted/50"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <Icon className="w-4 h-4 mr-2" />
-                          <span className="font-medium">{room.name}</span>
-                        </div>
-                        <Badge variant="outline" className="text-xs">
-                          {room.members}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center mt-1">
-                        {room.type === "public" ? (
-                          <Globe className="w-3 h-3 mr-1 text-success" />
-                        ) : (
-                          <Lock className="w-3 h-3 mr-1 text-warning" />
-                        )}
-                        <span className="text-xs text-muted-foreground capitalize">
-                          {room.type}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-                
-                <Button variant="outline" className="w-full mt-4">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Room
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Main Chat Area */}
-          <div className="lg:col-span-3">
-            <Card className="h-[600px] flex flex-col">
-              <CardHeader className="border-b">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center">
-                      <Hash className="w-5 h-5 mr-2" />
-                      {chatRooms.find(room => room.id === activeChat)?.name}
-                    </CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      {chatRooms.find(room => room.id === activeChat)?.members} members
-                    </p>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    <Users className="w-4 h-4 mr-2" />
-                    Members
-                  </Button>
-                </div>
-              </CardHeader>
-
-              {/* Messages */}
-              <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
-                {loading ? (
-                  <div className="flex justify-center items-center h-full">
-                    <p>Loading messages...</p>
-                  </div>
-                ) : messages.length === 0 ? (
-                  <div className="flex justify-center items-center h-full">
-                    <p className="text-muted-foreground">No messages yet. Send the first message!</p>
-                  </div>
-                ) : (
-                  messages.map((msg) => (
-                    <MessageItem key={msg.id} msg={msg} />
-                  ))
-                )}
-                <div ref={messagesEndRef} />
-              </CardContent>
-
-              {/* Message Input */}
-              <div className="p-4 border-t">
-                <div className="flex space-x-2">
-                  <div className="flex-1 relative">
-                    <Input
-                      placeholder="Type your message..."
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                      className="pr-12"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-1 top-1/2 transform -translate-y-1/2"
-                    >
-                      <Smile className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <Button 
-                    onClick={handleSendMessage} 
-                    className="bg-gradient-primary"
-                    disabled={!message.trim()}
-                  >
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </div>
+        {/* Main Chat Area */}
+        <div className="flex-1">
+          {/* Desktop Header */}
+          <div className="hidden lg:block mb-8 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gradient-primary mb-2">
+                  Real-Time Chat
+                </h1>
+                <p className="text-muted-foreground">
+                  Connect and collaborate with your fellow students
+                </p>
               </div>
-            </Card>
+              <Badge variant="secondary" className="px-4 py-2">
+                <Users className="w-4 h-4 mr-2" />
+                {chatRooms.find(room => room.id === activeChat)?.members} Online
+              </Badge>
+            </div>
           </div>
+
+          <Card className="h-[calc(100vh-140px)] lg:h-[600px] flex flex-col mx-4 lg:mx-0">
+            <CardHeader className="border-b">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center">
+                    <Hash className="w-5 h-5 mr-2" />
+                    {chatRooms.find(room => room.id === activeChat)?.name}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    {chatRooms.find(room => room.id === activeChat)?.members} members
+                  </p>
+                </div>
+                <Button variant="outline" size="sm">
+                  <Users className="w-4 h-4 mr-2" />
+                  Members
+                </Button>
+              </div>
+            </CardHeader>
+
+            {/* Messages */}
+            <CardContent className="flex-1 overflow-y-auto p-4">
+              {loading ? (
+                <div className="flex justify-center items-center h-full">
+                  <p>Loading messages...</p>
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="flex justify-center items-center h-full">
+                  <p className="text-muted-foreground">No messages yet. Send the first message!</p>
+                </div>
+              ) : (
+                messages.map((msg) => (
+                  <MessageItem key={msg.id} msg={msg} />
+                ))
+              )}
+              <div ref={messagesEndRef} />
+            </CardContent>
+
+            {/* Message Input */}
+            <div className="p-4 border-t">
+              <div className="flex space-x-2">
+                <div className="flex-1 relative">
+                  <Input
+                    placeholder="Type your message..."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                    className="pr-12"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-1 top-1/2 transform -translate-y-1/2"
+                  >
+                    <Smile className="w-4 h-4" />
+                  </Button>
+                </div>
+                <Button 
+                  onClick={handleSendMessage} 
+                  className="bg-gradient-primary"
+                  disabled={!message.trim()}
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </Card>
         </div>
       </div>
     </div>
