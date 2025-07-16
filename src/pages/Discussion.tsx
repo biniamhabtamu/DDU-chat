@@ -45,7 +45,7 @@ import {
 } from "firebase/firestore";
 import { formatDistanceToNow } from "date-fns";
 
-// Custom media query hook to replace react-responsive
+// Custom media query hook
 const useMediaQuery = () => {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -54,13 +54,9 @@ const useMediaQuery = () => {
       setIsMobile(window.innerWidth <= 768);
     };
     
-    // Initial check
     checkMobile();
-    
-    // Add event listener
     window.addEventListener("resize", checkMobile);
     
-    // Cleanup
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
@@ -703,20 +699,26 @@ const Discussion = () => {
                   />
                 </div>
 
-                <TabsList className="w-full grid grid-cols-2">
-                  <TabsTrigger value="all" onClick={() => setSelectedCategory("all")}>
+                {/* Fixed: Replaced Tabs with simple button group for categories */}
+                <div className="flex flex-wrap gap-2">
+                  <Button 
+                    variant={selectedCategory === "all" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedCategory("all")}
+                  >
                     All
-                  </TabsTrigger>
+                  </Button>
                   {categories.slice(1).map(cat => (
-                    <TabsTrigger 
-                      key={cat.id} 
-                      value={cat.id} 
+                    <Button
+                      key={cat.id}
+                      variant={selectedCategory === cat.id ? "default" : "outline"}
+                      size="sm"
                       onClick={() => setSelectedCategory(cat.id)}
                     >
                       {cat.name.split(" ")[0]}
-                    </TabsTrigger>
+                    </Button>
                   ))}
-                </TabsList>
+                </div>
               </div>
             )}
 
@@ -865,33 +867,411 @@ const Discussion = () => {
               </TabsContent>
 
               <TabsContent value="popular" className="space-y-4">
-                <div className="text-center py-12">
-                  <TrendingUp className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Popular Discussions</h3>
-                  <p className="text-muted-foreground">
-                    Discussions sorted by engagement and upvotes
-                  </p>
-                </div>
+                {isLoading ? (
+                  <div className="flex justify-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                  </div>
+                ) : paginatedDiscussions.length === 0 ? (
+                  <Card className="text-center py-12">
+                    <CardContent>
+                      <TrendingUp className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-medium">No popular discussions</h3>
+                      <p className="text-muted-foreground">
+                        Try changing your search or create a new discussion
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <>
+                    {paginatedDiscussions.map((discussion) => (
+                      <Card 
+                        key={discussion.id} 
+                        className="hover:shadow-soft transition-all duration-200 cursor-pointer"
+                        onClick={() => openDiscussionDetail(discussion)}
+                      >
+                        <CardContent className="p-4 md:p-6">
+                          <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+                            <div className="flex flex-row md:flex-col items-center justify-center md:justify-start space-x-4 md:space-x-0 md:space-y-2 flex-shrink-0">
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleVote(discussion.id, 'upvote');
+                                }}
+                              >
+                                <ArrowUp className="w-4 h-4" />
+                              </Button>
+                              <span className="text-sm font-medium">
+                                {discussion.upvotes - discussion.downvotes}
+                              </span>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleVote(discussion.id, 'downvote');
+                                }}
+                              >
+                                <ArrowDown className="w-4 h-4" />
+                              </Button>
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex items-center space-x-2">
+                                  {discussion.isPinned && (
+                                    <Pin className="w-4 h-4 text-primary flex-shrink-0" />
+                                  )}
+                                  {discussion.isSolved && (
+                                    <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
+                                  )}
+                                  <h3 className="text-base md:text-lg font-semibold hover:text-primary">
+                                    {discussion.title}
+                                  </h3>
+                                </div>
+                              </div>
+
+                              <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
+                                {discussion.content}
+                              </p>
+
+                              <div className="flex flex-wrap gap-2 mb-3">
+                                {discussion.tags.map((tag: string, index: number) => (
+                                  <Badge key={index} variant="secondary" className="text-xs">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+
+                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                                <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                                  <div className="flex items-center space-x-2">
+                                    <Avatar className="w-6 h-6">
+                                      <AvatarFallback className="text-xs bg-gradient-primary text-white">
+                                        {discussion.authorAvatar}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="hidden sm:inline">{discussion.author}</span>
+                                  </div>
+                                  <div className="flex items-center">
+                                    <MessageCircle className="w-4 h-4 mr-1" />
+                                    {discussion.replies}
+                                  </div>
+                                  <div className="flex items-center">
+                                    <Eye className="w-4 h-4 mr-1" />
+                                    {discussion.views}
+                                  </div>
+                                  <div className="flex items-center">
+                                    <Clock className="w-4 h-4 mr-1" />
+                                    <span className="hidden sm:inline">{discussion.lastActivity}</span>
+                                  </div>
+                                </div>
+
+                                <Badge variant="outline" className="text-xs capitalize">
+                                  {discussion.category}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+
+                    {/* Pagination */}
+                    <div className="flex items-center justify-between mt-6">
+                      <Button 
+                        variant="outline" 
+                        disabled={page === 1}
+                        onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                      >
+                        <ChevronLeft className="w-4 h-4 mr-2" /> Previous
+                      </Button>
+                      <div className="text-sm text-muted-foreground">
+                        Page {page} of {totalPages}
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        disabled={page >= totalPages}
+                        onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+                      >
+                        Next <ChevronRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </div>
+                  </>
+                )}
               </TabsContent>
 
               <TabsContent value="solved" className="space-y-4">
-                <div className="text-center py-12">
-                  <CheckCircle2 className="w-12 h-12 mx-auto text-success mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Solved Discussions</h3>
-                  <p className="text-muted-foreground">
-                    Questions that have been marked as solved
-                  </p>
-                </div>
+                {isLoading ? (
+                  <div className="flex justify-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                  </div>
+                ) : paginatedDiscussions.length === 0 ? (
+                  <Card className="text-center py-12">
+                    <CardContent>
+                      <CheckCircle2 className="w-12 h-12 mx-auto text-success mb-4" />
+                      <h3 className="text-lg font-medium">No solved discussions</h3>
+                      <p className="text-muted-foreground">
+                        Try changing your search or create a new discussion
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <>
+                    {paginatedDiscussions.map((discussion) => (
+                      <Card 
+                        key={discussion.id} 
+                        className="hover:shadow-soft transition-all duration-200 cursor-pointer"
+                        onClick={() => openDiscussionDetail(discussion)}
+                      >
+                        <CardContent className="p-4 md:p-6">
+                          <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+                            <div className="flex flex-row md:flex-col items-center justify-center md:justify-start space-x-4 md:space-x-0 md:space-y-2 flex-shrink-0">
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleVote(discussion.id, 'upvote');
+                                }}
+                              >
+                                <ArrowUp className="w-4 h-4" />
+                              </Button>
+                              <span className="text-sm font-medium">
+                                {discussion.upvotes - discussion.downvotes}
+                              </span>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleVote(discussion.id, 'downvote');
+                                }}
+                              >
+                                <ArrowDown className="w-4 h-4" />
+                              </Button>
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex items-center space-x-2">
+                                  {discussion.isPinned && (
+                                    <Pin className="w-4 h-4 text-primary flex-shrink-0" />
+                                  )}
+                                  {discussion.isSolved && (
+                                    <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
+                                  )}
+                                  <h3 className="text-base md:text-lg font-semibold hover:text-primary">
+                                    {discussion.title}
+                                  </h3>
+                                </div>
+                              </div>
+
+                              <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
+                                {discussion.content}
+                              </p>
+
+                              <div className="flex flex-wrap gap-2 mb-3">
+                                {discussion.tags.map((tag: string, index: number) => (
+                                  <Badge key={index} variant="secondary" className="text-xs">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+
+                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                                <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                                  <div className="flex items-center space-x-2">
+                                    <Avatar className="w-6 h-6">
+                                      <AvatarFallback className="text-xs bg-gradient-primary text-white">
+                                        {discussion.authorAvatar}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="hidden sm:inline">{discussion.author}</span>
+                                  </div>
+                                  <div className="flex items-center">
+                                    <MessageCircle className="w-4 h-4 mr-1" />
+                                    {discussion.replies}
+                                  </div>
+                                  <div className="flex items-center">
+                                    <Eye className="w-4 h-4 mr-1" />
+                                    {discussion.views}
+                                  </div>
+                                  <div className="flex items-center">
+                                    <Clock className="w-4 h-4 mr-1" />
+                                    <span className="hidden sm:inline">{discussion.lastActivity}</span>
+                                  </div>
+                                </div>
+
+                                <Badge variant="outline" className="text-xs capitalize">
+                                  {discussion.category}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+
+                    {/* Pagination */}
+                    <div className="flex items-center justify-between mt-6">
+                      <Button 
+                        variant="outline" 
+                        disabled={page === 1}
+                        onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                      >
+                        <ChevronLeft className="w-4 h-4 mr-2" /> Previous
+                      </Button>
+                      <div className="text-sm text-muted-foreground">
+                        Page {page} of {totalPages}
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        disabled={page >= totalPages}
+                        onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+                      >
+                        Next <ChevronRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </div>
+                  </>
+                )}
               </TabsContent>
 
               <TabsContent value="unanswered" className="space-y-4">
-                <div className="text-center py-12">
-                  <HelpCircle className="w-12 h-12 mx-auto text-warning mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Unanswered Questions</h3>
-                  <p className="text-muted-foreground">
-                    Questions that need your help and expertise
-                  </p>
-                </div>
+                {isLoading ? (
+                  <div className="flex justify-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                  </div>
+                ) : paginatedDiscussions.length === 0 ? (
+                  <Card className="text-center py-12">
+                    <CardContent>
+                      <HelpCircle className="w-12 h-12 mx-auto text-warning mb-4" />
+                      <h3 className="text-lg font-medium">No unanswered discussions</h3>
+                      <p className="text-muted-foreground">
+                        Try changing your search or create a new discussion
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <>
+                    {paginatedDiscussions.map((discussion) => (
+                      <Card 
+                        key={discussion.id} 
+                        className="hover:shadow-soft transition-all duration-200 cursor-pointer"
+                        onClick={() => openDiscussionDetail(discussion)}
+                      >
+                        <CardContent className="p-4 md:p-6">
+                          <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+                            <div className="flex flex-row md:flex-col items-center justify-center md:justify-start space-x-4 md:space-x-0 md:space-y-2 flex-shrink-0">
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleVote(discussion.id, 'upvote');
+                                }}
+                              >
+                                <ArrowUp className="w-4 h-4" />
+                              </Button>
+                              <span className="text-sm font-medium">
+                                {discussion.upvotes - discussion.downvotes}
+                              </span>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleVote(discussion.id, 'downvote');
+                                }}
+                              >
+                                <ArrowDown className="w-4 h-4" />
+                              </Button>
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex items-center space-x-2">
+                                  {discussion.isPinned && (
+                                    <Pin className="w-4 h-4 text-primary flex-shrink-0" />
+                                  )}
+                                  {discussion.isSolved && (
+                                    <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
+                                  )}
+                                  <h3 className="text-base md:text-lg font-semibold hover:text-primary">
+                                    {discussion.title}
+                                  </h3>
+                                </div>
+                              </div>
+
+                              <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
+                                {discussion.content}
+                              </p>
+
+                              <div className="flex flex-wrap gap-2 mb-3">
+                                {discussion.tags.map((tag: string, index: number) => (
+                                  <Badge key={index} variant="secondary" className="text-xs">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+
+                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                                <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                                  <div className="flex items-center space-x-2">
+                                    <Avatar className="w-6 h-6">
+                                      <AvatarFallback className="text-xs bg-gradient-primary text-white">
+                                        {discussion.authorAvatar}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="hidden sm:inline">{discussion.author}</span>
+                                  </div>
+                                  <div className="flex items-center">
+                                    <MessageCircle className="w-4 h-4 mr-1" />
+                                    {discussion.replies}
+                                  </div>
+                                  <div className="flex items-center">
+                                    <Eye className="w-4 h-4 mr-1" />
+                                    {discussion.views}
+                                  </div>
+                                  <div className="flex items-center">
+                                    <Clock className="w-4 h-4 mr-1" />
+                                    <span className="hidden sm:inline">{discussion.lastActivity}</span>
+                                  </div>
+                                </div>
+
+                                <Badge variant="outline" className="text-xs capitalize">
+                                  {discussion.category}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+
+                    {/* Pagination */}
+                    <div className="flex items-center justify-between mt-6">
+                      <Button 
+                        variant="outline" 
+                        disabled={page === 1}
+                        onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                      >
+                        <ChevronLeft className="w-4 h-4 mr-2" /> Previous
+                      </Button>
+                      <div className="text-sm text-muted-foreground">
+                        Page {page} of {totalPages}
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        disabled={page >= totalPages}
+                        onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+                      >
+                        Next <ChevronRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </div>
+                  </>
+                )}
               </TabsContent>
             </Tabs>
           </div>
