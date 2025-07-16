@@ -97,7 +97,7 @@ const DevTools = () => {
   ]);
   const [terminalCommand, setTerminalCommand] = useState("");
   
-  const [darkTheme, setDarkTheme] = useState(true);
+  const [darkTheme, setDarkTheme] = useState(false);
   const [quote, setQuote] = useState(
     "The beautiful thing about learning is that no one can take it away from you."
   );
