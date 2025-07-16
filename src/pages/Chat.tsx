@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   MessageCircle, 
   Users, 
@@ -33,6 +33,7 @@ import {
   Menu,
   X
 } from "lucide-react";
+import logo from "@/assets/dire-dev-logo.png";
 
 interface Message {
   id: string;
@@ -63,6 +64,7 @@ const Chat = () => {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
 
   const chatRooms: ChatRoom[] = [
     { id: "general", name: "General", type: "public", members: 245, icon: Hash },
@@ -72,13 +74,12 @@ const Chat = () => {
     { id: "study-group", name: "Study Group 2024", type: "private", members: 24, icon: Lock },
   ];
 
-  // Toggle sidebar on mobile
+  // Toggle sidebar
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
-  // Close sidebar when clicking outside on mobile
-  const sidebarRef = useRef<HTMLDivElement>(null);
+  // Close sidebar when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
@@ -146,7 +147,46 @@ const Chat = () => {
     }
   };
 
-  // Message component with improved styling
+  const startEditing = (msg: Message) => {
+    setEditingMessageId(msg.id);
+    setEditingText(msg.text);
+  };
+
+  const cancelEditing = () => {
+    setEditingMessageId(null);
+    setEditingText("");
+  };
+
+  const updateMessage = async () => {
+    if (!editingMessageId) return;
+
+    try {
+      await updateDoc(doc(db, "messages", editingMessageId), {
+        text: editingText,
+        isEdited: true,
+        createdAt: serverTimestamp()
+      });
+      setEditingMessageId(null);
+      setEditingText("");
+    } catch (error) {
+      console.error("Error updating message:", error);
+    }
+  };
+
+  const deleteMessage = async (messageId: string) => {
+    if (window.confirm("Are you sure you want to delete this message?")) {
+      try {
+        await deleteDoc(doc(db, "messages", messageId));
+      } catch (error) {
+        console.error("Error deleting message:", error);
+      }
+    }
+  };
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
   const MessageItem = ({ msg }: { msg: Message }) => {
     const isCurrentUser = user?.uid === msg.userId;
     
@@ -195,91 +235,121 @@ const Chat = () => {
     );
   };
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
   return (
     <div className="min-h-screen bg-background">
-      {/* Mobile Header with Menu Button */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 bg-background z-10 p-4 border-b flex justify-between items-center">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={toggleSidebar}
-          className="text-gray-700 dark:text-gray-300"
-        >
-          {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </Button>
-        <h1 className="text-xl font-bold text-gradient-primary">
-          {chatRooms.find(room => room.id === activeChat)?.name}
-        </h1>
-        <div className="w-10"></div> {/* Spacer for alignment */}
-      </div>
-
-      <div className="flex pt-16 lg:pt-0">
-        {/* Sidebar - Hidden on mobile unless open */}
+      <div className="flex h-screen">
+        {/* Collapsible Sidebar */}
         <div 
           ref={sidebarRef}
-          className={`fixed lg:static inset-y-0 left-0 z-20 w-64 bg-background border-r transform ${
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          } lg:translate-x-0 transition-transform duration-300 ease-in-out`}
+          className={`flex flex-col h-full ${
+            sidebarOpen ? 'w-64' : 'w-16'
+          } transition-all duration-300 bg-background border-r z-20`}
         >
-          <Card className="h-full rounded-none border-0">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center">
-                <MessageCircle className="w-5 h-5 mr-2" />
-                Chat Rooms
-              </CardTitle>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                <Input placeholder="Search rooms..." className="pl-10" />
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {chatRooms.map((room) => {
-                const Icon = room.icon;
-                return (
-                  <button
-                    key={room.id}
-                    onClick={() => {
-                      setActiveChat(room.id);
-                      setSidebarOpen(false);
-                    }}
-                    className={`w-full text-left p-3 rounded-lg transition-all duration-200 flex items-center justify-between ${
-                      activeChat === room.id
-                        ? "bg-primary/10 text-primary border border-primary/20"
-                        : "hover:bg-muted/50"
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <Icon className="w-4 h-4 mr-2" />
-                      <span className="font-medium">{room.name}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <Badge variant="outline" className="text-xs mr-2">
-                        {room.members}
-                      </Badge>
-                      {room.type === "public" ? (
-                        <Globe className="w-3 h-3 text-success" />
-                      ) : (
-                        <Lock className="w-3 h-3 text-warning" />
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-              
-              <Button variant="outline" className="w-full mt-4">
-                <Plus className="w-4 h-4 mr-2" />
-                Create Room
+          {/* Sidebar Header */}
+          <div className={`p-4 border-b flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'}`}>
+            {sidebarOpen ? (
+              <>
+                <div className="flex items-center">
+                  <img src={logo} alt="Dire-Dev Logo" className="h-8 mr-2" />
+                  <h2 className="text-xl font-bold">Dire-Dev</h2>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={toggleSidebar}
+                  className="lg:hidden"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </>
+            ) : (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={toggleSidebar}
+              >
+                <MessageCircle className="h-5 w-5" />
               </Button>
-            </CardContent>
-          </Card>
+            )}
+          </div>
+          
+          {/* Sidebar Content */}
+          {sidebarOpen && (
+            <Card className="flex-1 rounded-none border-0">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center">
+                  <MessageCircle className="w-5 h-5 mr-2" />
+                  Chat Rooms
+                </CardTitle>
+                <div className="relative mt-2">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input placeholder="Search rooms..." className="pl-10" />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {chatRooms.map((room) => {
+                  const Icon = room.icon;
+                  return (
+                    <button
+                      key={room.id}
+                      onClick={() => {
+                        setActiveChat(room.id);
+                        setSidebarOpen(false);
+                      }}
+                      className={`w-full text-left p-3 rounded-lg transition-all duration-200 flex items-center justify-between ${
+                        activeChat === room.id
+                          ? "bg-primary/10 text-primary border border-primary/20"
+                          : "hover:bg-muted/50"
+                      }`}
+                    >
+                      <div className="flex items-center">
+                        <Icon className="w-4 h-4 mr-2" />
+                        {sidebarOpen && <span className="font-medium">{room.name}</span>}
+                      </div>
+                      {sidebarOpen && (
+                        <div className="flex items-center">
+                          <Badge variant="outline" className="text-xs mr-2">
+                            {room.members}
+                          </Badge>
+                          {room.type === "public" ? (
+                            <Globe className="w-3 h-3 text-success" />
+                          ) : (
+                            <Lock className="w-3 h-3 text-warning" />
+                          )}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+                
+                {sidebarOpen && (
+                  <Button variant="outline" className="w-full mt-4">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Room
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Main Chat Area */}
-        <div className="flex-1">
+        <div className="flex-1 flex flex-col">
+          {/* Mobile Header - Only shown on small screens */}
+          <div className="lg:hidden p-4 border-b flex items-center">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={toggleSidebar}
+              className="mr-2"
+            >
+              {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
+            <h1 className="text-lg font-semibold truncate">
+              {chatRooms.find(room => room.id === activeChat)?.name}
+            </h1>
+          </div>
+
           {/* Desktop Header */}
           <div className="hidden lg:block mb-8 p-4">
             <div className="flex items-center justify-between">
@@ -298,7 +368,7 @@ const Chat = () => {
             </div>
           </div>
 
-          <Card className="h-[calc(100vh-140px)] lg:h-[600px] flex flex-col mx-4 lg:mx-0">
+          <Card className="flex-1 flex flex-col mx-4 lg:mx-0 mb-4 lg:mb-0">
             <CardHeader className="border-b">
               <div className="flex items-center justify-between">
                 <div>
