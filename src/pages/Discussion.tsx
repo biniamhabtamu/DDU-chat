@@ -83,6 +83,8 @@ const Discussion = () => {
   const [page, setPage] = useState(1);
   const itemsPerPage = 5;
   const [viewedDiscussions, setViewedDiscussions] = useState<string[]>([]);
+  const [votedDiscussions, setVotedDiscussions] = useState<string[]>([]);
+  const [votedComments, setVotedComments] = useState<string[]>([]);
   
   const isMobile = useMediaQuery();
 
@@ -221,6 +223,10 @@ const Discussion = () => {
 
   // Handle voting for discussions
   const handleVote = async (discussionId: string, type: 'upvote' | 'downvote') => {
+    if (votedDiscussions.includes(discussionId)) {
+      return; // User already voted on this discussion
+    }
+    
     try {
       const discussionRef = doc(db, "discussions", discussionId);
       
@@ -233,6 +239,9 @@ const Discussion = () => {
           downvotes: increment(1)
         });
       }
+      
+      // Record that user voted on this discussion
+      setVotedDiscussions(prev => [...prev, discussionId]);
     } catch (error) {
       console.error("Error updating vote: ", error);
     }
@@ -240,13 +249,18 @@ const Discussion = () => {
 
   // Handle voting for comments
   const handleCommentVote = async (commentId: string) => {
-    if (!selectedDiscussion) return;
+    if (!selectedDiscussion || votedComments.includes(commentId)) {
+      return; // User already voted on this comment
+    }
     
     try {
       const commentRef = doc(db, "discussions", selectedDiscussion.id, "comments", commentId);
       await updateDoc(commentRef, {
         upvotes: increment(1)
       });
+      
+      // Record that user voted on this comment
+      setVotedComments(prev => [...prev, commentId]);
     } catch (error) {
       console.error("Error updating comment vote: ", error);
     }
@@ -319,6 +333,16 @@ const Discussion = () => {
     }
   };
 
+  // Check if user has voted on a discussion
+  const hasVotedOnDiscussion = (discussionId: string) => {
+    return votedDiscussions.includes(discussionId);
+  };
+
+  // Check if user has voted on a comment
+  const hasVotedOnComment = (commentId: string) => {
+    return votedComments.includes(commentId);
+  };
+
   // Responsive layout
   if (isDetailOpen && selectedDiscussion) {
     return (
@@ -340,9 +364,10 @@ const Discussion = () => {
               <div className="flex space-x-4">
                 <div className="flex flex-col items-center space-y-2 flex-shrink-0">
                   <Button 
-                    variant="ghost" 
+                    variant={hasVotedOnDiscussion(selectedDiscussion.id) ? "default" : "ghost"}
                     size="icon"
                     onClick={() => handleVote(selectedDiscussion.id, 'upvote')}
+                    disabled={hasVotedOnDiscussion(selectedDiscussion.id)}
                   >
                     <ArrowUp className="w-5 h-5" />
                   </Button>
@@ -353,6 +378,7 @@ const Discussion = () => {
                     variant="ghost" 
                     size="icon"
                     onClick={() => handleVote(selectedDiscussion.id, 'downvote')}
+                    disabled={hasVotedOnDiscussion(selectedDiscussion.id)}
                   >
                     <ArrowDown className="w-5 h-5" />
                   </Button>
@@ -459,9 +485,10 @@ const Discussion = () => {
                     <div className="flex space-x-4">
                       <div className="flex flex-col items-center space-y-1 flex-shrink-0">
                         <Button 
-                          variant="ghost" 
+                          variant={hasVotedOnComment(comment.id) ? "default" : "ghost"}
                           size="icon"
                           onClick={() => handleCommentVote(comment.id)}
+                          disabled={hasVotedOnComment(comment.id)}
                         >
                           <ArrowUp className="w-4 h-4" />
                         </Button>
@@ -755,100 +782,106 @@ const Discussion = () => {
                   </Card>
                 ) : (
                   <>
-                    {paginatedDiscussions.map((discussion) => (
-                      <Card 
-                        key={discussion.id} 
-                        className="hover:shadow-soft transition-all duration-200 cursor-pointer"
-                        onClick={() => openDiscussionDetail(discussion)}
-                      >
-                        <CardContent className="p-4 md:p-6">
-                          <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
-                            <div className="flex flex-row md:flex-col items-center justify-center md:justify-start space-x-4 md:space-x-0 md:space-y-2 flex-shrink-0">
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleVote(discussion.id, 'upvote');
-                                }}
-                              >
-                                <ArrowUp className="w-4 h-4" />
-                              </Button>
-                              <span className="text-sm font-medium">
-                                {discussion.upvotes - discussion.downvotes}
-                              </span>
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleVote(discussion.id, 'downvote');
-                                }}
-                              >
-                                <ArrowDown className="w-4 h-4" />
-                              </Button>
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between mb-2">
-                                <div className="flex items-center space-x-2">
-                                  {discussion.isPinned && (
-                                    <Pin className="w-4 h-4 text-primary flex-shrink-0" />
-                                  )}
-                                  {discussion.isSolved && (
-                                    <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
-                                  )}
-                                  <h3 className="text-base md:text-lg font-semibold hover:text-primary">
-                                    {discussion.title}
-                                  </h3>
-                                </div>
+                    {paginatedDiscussions.map((discussion) => {
+                      const hasVoted = hasVotedOnDiscussion(discussion.id);
+                      
+                      return (
+                        <Card 
+                          key={discussion.id} 
+                          className="hover:shadow-soft transition-all duration-200 cursor-pointer"
+                          onClick={() => openDiscussionDetail(discussion)}
+                        >
+                          <CardContent className="p-4 md:p-6">
+                            <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+                              <div className="flex flex-row md:flex-col items-center justify-center md:justify-start space-x-4 md:space-x-0 md:space-y-2 flex-shrink-0">
+                                <Button 
+                                  variant={hasVoted ? "default" : "ghost"}
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleVote(discussion.id, 'upvote');
+                                  }}
+                                  disabled={hasVoted}
+                                >
+                                  <ArrowUp className="w-4 h-4" />
+                                </Button>
+                                <span className="text-sm font-medium">
+                                  {discussion.upvotes - discussion.downvotes}
+                                </span>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleVote(discussion.id, 'downvote');
+                                  }}
+                                  disabled={hasVoted}
+                                >
+                                  <ArrowDown className="w-4 h-4" />
+                                </Button>
                               </div>
 
-                              <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
-                                {discussion.content}
-                              </p>
-
-                              <div className="flex flex-wrap gap-2 mb-3">
-                                {discussion.tags.map((tag: string, index: number) => (
-                                  <Badge key={index} variant="secondary" className="text-xs">
-                                    {tag}
-                                  </Badge>
-                                ))}
-                              </div>
-
-                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
-                                <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between mb-2">
                                   <div className="flex items-center space-x-2">
-                                    <Avatar className="w-6 h-6">
-                                      <AvatarFallback className="text-xs bg-gradient-primary text-white">
-                                        {discussion.authorAvatar}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <span className="hidden sm:inline">{discussion.author}</span>
-                                  </div>
-                                  <div className="flex items-center">
-                                    <MessageCircle className="w-4 h-4 mr-1" />
-                                    {discussion.replies}
-                                  </div>
-                                  <div className="flex items-center">
-                                    <Eye className="w-4 h-4 mr-1" />
-                                    {discussion.views}
-                                  </div>
-                                  <div className="flex items-center">
-                                    <Clock className="w-4 h-4 mr-1" />
-                                    <span className="hidden sm:inline">{discussion.lastActivity}</span>
+                                    {discussion.isPinned && (
+                                      <Pin className="w-4 h-4 text-primary flex-shrink-0" />
+                                    )}
+                                    {discussion.isSolved && (
+                                      <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
+                                    )}
+                                    <h3 className="text-base md:text-lg font-semibold hover:text-primary">
+                                      {discussion.title}
+                                    </h3>
                                   </div>
                                 </div>
 
-                                <Badge variant="outline" className="text-xs capitalize">
-                                  {discussion.category}
-                                </Badge>
+                                <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
+                                  {discussion.content}
+                                </p>
+
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                  {discussion.tags.map((tag: string, index: number) => (
+                                    <Badge key={index} variant="secondary" className="text-xs">
+                                      {tag}
+                                    </Badge>
+                                  ))}
+                                </div>
+
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                                  <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                                    <div className="flex items-center space-x-2">
+                                      <Avatar className="w-6 h-6">
+                                        <AvatarFallback className="text-xs bg-gradient-primary text-white">
+                                          {discussion.authorAvatar}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <span className="hidden sm:inline">{discussion.author}</span>
+                                    </div>
+                                    <div className="flex items-center">
+                                      <MessageCircle className="w-4 h-4 mr-1" />
+                                      {discussion.replies}
+                                    </div>
+                                    <div className="flex items-center">
+                                      <Eye className="w-4 h-4 mr-1" />
+                                      {discussion.views}
+                                    </div>
+                                    <div className="flex items-center">
+                                      <Clock className="w-4 h-4 mr-1" />
+                                      <span className="hidden sm:inline">{discussion.lastActivity}</span>
+                                    </div>
+                                  </div>
+
+                                  <Badge variant="outline" className="text-xs capitalize">
+                                    {discussion.category}
+                                  </Badge>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
 
                     {/* Pagination */}
                     <div className="flex items-center justify-between mt-6">
@@ -891,100 +924,106 @@ const Discussion = () => {
                   </Card>
                 ) : (
                   <>
-                    {paginatedDiscussions.map((discussion) => (
-                      <Card 
-                        key={discussion.id} 
-                        className="hover:shadow-soft transition-all duration-200 cursor-pointer"
-                        onClick={() => openDiscussionDetail(discussion)}
-                      >
-                        <CardContent className="p-4 md:p-6">
-                          <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
-                            <div className="flex flex-row md:flex-col items-center justify-center md:justify-start space-x-4 md:space-x-0 md:space-y-2 flex-shrink-0">
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleVote(discussion.id, 'upvote');
-                                }}
-                              >
-                                <ArrowUp className="w-4 h-4" />
-                              </Button>
-                              <span className="text-sm font-medium">
-                                {discussion.upvotes - discussion.downvotes}
-                              </span>
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleVote(discussion.id, 'downvote');
-                                }}
-                              >
-                                <ArrowDown className="w-4 h-4" />
-                              </Button>
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between mb-2">
-                                <div className="flex items-center space-x-2">
-                                  {discussion.isPinned && (
-                                    <Pin className="w-4 h-4 text-primary flex-shrink-0" />
-                                  )}
-                                  {discussion.isSolved && (
-                                    <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
-                                  )}
-                                  <h3 className="text-base md:text-lg font-semibold hover:text-primary">
-                                    {discussion.title}
-                                  </h3>
-                                </div>
+                    {paginatedDiscussions.map((discussion) => {
+                      const hasVoted = hasVotedOnDiscussion(discussion.id);
+                      
+                      return (
+                        <Card 
+                          key={discussion.id} 
+                          className="hover:shadow-soft transition-all duration-200 cursor-pointer"
+                          onClick={() => openDiscussionDetail(discussion)}
+                        >
+                          <CardContent className="p-4 md:p-6">
+                            <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+                              <div className="flex flex-row md:flex-col items-center justify-center md:justify-start space-x-4 md:space-x-0 md:space-y-2 flex-shrink-0">
+                                <Button 
+                                  variant={hasVoted ? "default" : "ghost"}
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleVote(discussion.id, 'upvote');
+                                  }}
+                                  disabled={hasVoted}
+                                >
+                                  <ArrowUp className="w-4 h-4" />
+                                </Button>
+                                <span className="text-sm font-medium">
+                                  {discussion.upvotes - discussion.downvotes}
+                                </span>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleVote(discussion.id, 'downvote');
+                                  }}
+                                  disabled={hasVoted}
+                                >
+                                  <ArrowDown className="w-4 h-4" />
+                                </Button>
                               </div>
 
-                              <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
-                                {discussion.content}
-                              </p>
-
-                              <div className="flex flex-wrap gap-2 mb-3">
-                                {discussion.tags.map((tag: string, index: number) => (
-                                  <Badge key={index} variant="secondary" className="text-xs">
-                                    {tag}
-                                  </Badge>
-                                ))}
-                              </div>
-
-                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
-                                <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between mb-2">
                                   <div className="flex items-center space-x-2">
-                                    <Avatar className="w-6 h-6">
-                                      <AvatarFallback className="text-xs bg-gradient-primary text-white">
-                                        {discussion.authorAvatar}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <span className="hidden sm:inline">{discussion.author}</span>
-                                  </div>
-                                  <div className="flex items-center">
-                                    <MessageCircle className="w-4 h-4 mr-1" />
-                                    {discussion.replies}
-                                  </div>
-                                  <div className="flex items-center">
-                                    <Eye className="w-4 h-4 mr-1" />
-                                    {discussion.views}
-                                  </div>
-                                  <div className="flex items-center">
-                                    <Clock className="w-4 h-4 mr-1" />
-                                    <span className="hidden sm:inline">{discussion.lastActivity}</span>
+                                    {discussion.isPinned && (
+                                      <Pin className="w-4 h-4 text-primary flex-shrink-0" />
+                                    )}
+                                    {discussion.isSolved && (
+                                      <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
+                                    )}
+                                    <h3 className="text-base md:text-lg font-semibold hover:text-primary">
+                                      {discussion.title}
+                                    </h3>
                                   </div>
                                 </div>
 
-                                <Badge variant="outline" className="text-xs capitalize">
-                                  {discussion.category}
-                                </Badge>
+                                <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
+                                  {discussion.content}
+                                </p>
+
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                  {discussion.tags.map((tag: string, index: number) => (
+                                    <Badge key={index} variant="secondary" className="text-xs">
+                                      {tag}
+                                    </Badge>
+                                  ))}
+                                </div>
+
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                                  <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                                    <div className="flex items-center space-x-2">
+                                      <Avatar className="w-6 h-6">
+                                        <AvatarFallback className="text-xs bg-gradient-primary text-white">
+                                          {discussion.authorAvatar}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <span className="hidden sm:inline">{discussion.author}</span>
+                                    </div>
+                                    <div className="flex items-center">
+                                      <MessageCircle className="w-4 h-4 mr-1" />
+                                      {discussion.replies}
+                                    </div>
+                                    <div className="flex items-center">
+                                      <Eye className="w-4 h-4 mr-1" />
+                                      {discussion.views}
+                                    </div>
+                                    <div className="flex items-center">
+                                      <Clock className="w-4 h-4 mr-1" />
+                                      <span className="hidden sm:inline">{discussion.lastActivity}</span>
+                                    </div>
+                                  </div>
+
+                                  <Badge variant="outline" className="text-xs capitalize">
+                                    {discussion.category}
+                                  </Badge>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
 
                     {/* Pagination */}
                     <div className="flex items-center justify-between mt-6">
@@ -1027,100 +1066,106 @@ const Discussion = () => {
                   </Card>
                 ) : (
                   <>
-                    {paginatedDiscussions.map((discussion) => (
-                      <Card 
-                        key={discussion.id} 
-                        className="hover:shadow-soft transition-all duration-200 cursor-pointer"
-                        onClick={() => openDiscussionDetail(discussion)}
-                      >
-                        <CardContent className="p-4 md:p-6">
-                          <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
-                            <div className="flex flex-row md:flex-col items-center justify-center md:justify-start space-x-4 md:space-x-0 md:space-y-2 flex-shrink-0">
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleVote(discussion.id, 'upvote');
-                                }}
-                              >
-                                <ArrowUp className="w-4 h-4" />
-                              </Button>
-                              <span className="text-sm font-medium">
-                                {discussion.upvotes - discussion.downvotes}
-                              </span>
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleVote(discussion.id, 'downvote');
-                                }}
-                              >
-                                <ArrowDown className="w-4 h-4" />
-                              </Button>
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between mb-2">
-                                <div className="flex items-center space-x-2">
-                                  {discussion.isPinned && (
-                                    <Pin className="w-4 h-4 text-primary flex-shrink-0" />
-                                  )}
-                                  {discussion.isSolved && (
-                                    <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
-                                  )}
-                                  <h3 className="text-base md:text-lg font-semibold hover:text-primary">
-                                    {discussion.title}
-                                  </h3>
-                                </div>
+                    {paginatedDiscussions.map((discussion) => {
+                      const hasVoted = hasVotedOnDiscussion(discussion.id);
+                      
+                      return (
+                        <Card 
+                          key={discussion.id} 
+                          className="hover:shadow-soft transition-all duration-200 cursor-pointer"
+                          onClick={() => openDiscussionDetail(discussion)}
+                        >
+                          <CardContent className="p-4 md:p-6">
+                            <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+                              <div className="flex flex-row md:flex-col items-center justify-center md:justify-start space-x-4 md:space-x-0 md:space-y-2 flex-shrink-0">
+                                <Button 
+                                  variant={hasVoted ? "default" : "ghost"}
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleVote(discussion.id, 'upvote');
+                                  }}
+                                  disabled={hasVoted}
+                                >
+                                  <ArrowUp className="w-4 h-4" />
+                                </Button>
+                                <span className="text-sm font-medium">
+                                  {discussion.upvotes - discussion.downvotes}
+                                </span>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleVote(discussion.id, 'downvote');
+                                  }}
+                                  disabled={hasVoted}
+                                >
+                                  <ArrowDown className="w-4 h-4" />
+                                </Button>
                               </div>
 
-                              <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
-                                {discussion.content}
-                              </p>
-
-                              <div className="flex flex-wrap gap-2 mb-3">
-                                {discussion.tags.map((tag: string, index: number) => (
-                                  <Badge key={index} variant="secondary" className="text-xs">
-                                    {tag}
-                                  </Badge>
-                                ))}
-                              </div>
-
-                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
-                                <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between mb-2">
                                   <div className="flex items-center space-x-2">
-                                    <Avatar className="w-6 h-6">
-                                      <AvatarFallback className="text-xs bg-gradient-primary text-white">
-                                        {discussion.authorAvatar}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <span className="hidden sm:inline">{discussion.author}</span>
-                                  </div>
-                                  <div className="flex items-center">
-                                    <MessageCircle className="w-4 h-4 mr-1" />
-                                    {discussion.replies}
-                                  </div>
-                                  <div className="flex items-center">
-                                    <Eye className="w-4 h-4 mr-1" />
-                                    {discussion.views}
-                                  </div>
-                                  <div className="flex items-center">
-                                    <Clock className="w-4 h-4 mr-1" />
-                                    <span className="hidden sm:inline">{discussion.lastActivity}</span>
+                                    {discussion.isPinned && (
+                                      <Pin className="w-4 h-4 text-primary flex-shrink-0" />
+                                    )}
+                                    {discussion.isSolved && (
+                                      <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
+                                    )}
+                                    <h3 className="text-base md:text-lg font-semibold hover:text-primary">
+                                      {discussion.title}
+                                    </h3>
                                   </div>
                                 </div>
 
-                                <Badge variant="outline" className="text-xs capitalize">
-                                  {discussion.category}
-                                </Badge>
+                                <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
+                                  {discussion.content}
+                                </p>
+
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                  {discussion.tags.map((tag: string, index: number) => (
+                                    <Badge key={index} variant="secondary" className="text-xs">
+                                      {tag}
+                                    </Badge>
+                                  ))}
+                                </div>
+
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                                  <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                                    <div className="flex items-center space-x-2">
+                                      <Avatar className="w-6 h-6">
+                                        <AvatarFallback className="text-xs bg-gradient-primary text-white">
+                                          {discussion.authorAvatar}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <span className="hidden sm:inline">{discussion.author}</span>
+                                    </div>
+                                    <div className="flex items-center">
+                                      <MessageCircle className="w-4 h-4 mr-1" />
+                                      {discussion.replies}
+                                    </div>
+                                    <div className="flex items-center">
+                                      <Eye className="w-4 h-4 mr-1" />
+                                      {discussion.views}
+                                    </div>
+                                    <div className="flex items-center">
+                                      <Clock className="w-4 h-4 mr-1" />
+                                      <span className="hidden sm:inline">{discussion.lastActivity}</span>
+                                    </div>
+                                  </div>
+
+                                  <Badge variant="outline" className="text-xs capitalize">
+                                    {discussion.category}
+                                  </Badge>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
 
                     {/* Pagination */}
                     <div className="flex items-center justify-between mt-6">
@@ -1163,100 +1208,106 @@ const Discussion = () => {
                   </Card>
                 ) : (
                   <>
-                    {paginatedDiscussions.map((discussion) => (
-                      <Card 
-                        key={discussion.id} 
-                        className="hover:shadow-soft transition-all duration-200 cursor-pointer"
-                        onClick={() => openDiscussionDetail(discussion)}
-                      >
-                        <CardContent className="p-4 md:p-6">
-                          <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
-                            <div className="flex flex-row md:flex-col items-center justify-center md:justify-start space-x-4 md:space-x-0 md:space-y-2 flex-shrink-0">
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleVote(discussion.id, 'upvote');
-                                }}
-                              >
-                                <ArrowUp className="w-4 h-4" />
-                              </Button>
-                              <span className="text-sm font-medium">
-                                {discussion.upvotes - discussion.downvotes}
-                              </span>
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleVote(discussion.id, 'downvote');
-                                }}
-                              >
-                                <ArrowDown className="w-4 h-4" />
-                              </Button>
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between mb-2">
-                                <div className="flex items-center space-x-2">
-                                  {discussion.isPinned && (
-                                    <Pin className="w-4 h-4 text-primary flex-shrink-0" />
-                                  )}
-                                  {discussion.isSolved && (
-                                    <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
-                                  )}
-                                  <h3 className="text-base md:text-lg font-semibold hover:text-primary">
-                                    {discussion.title}
-                                  </h3>
-                                </div>
+                    {paginatedDiscussions.map((discussion) => {
+                      const hasVoted = hasVotedOnDiscussion(discussion.id);
+                      
+                      return (
+                        <Card 
+                          key={discussion.id} 
+                          className="hover:shadow-soft transition-all duration-200 cursor-pointer"
+                          onClick={() => openDiscussionDetail(discussion)}
+                        >
+                          <CardContent className="p-4 md:p-6">
+                            <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+                              <div className="flex flex-row md:flex-col items-center justify-center md:justify-start space-x-4 md:space-x-0 md:space-y-2 flex-shrink-0">
+                                <Button 
+                                  variant={hasVoted ? "default" : "ghost"}
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleVote(discussion.id, 'upvote');
+                                  }}
+                                  disabled={hasVoted}
+                                >
+                                  <ArrowUp className="w-4 h-4" />
+                                </Button>
+                                <span className="text-sm font-medium">
+                                  {discussion.upvotes - discussion.downvotes}
+                                </span>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleVote(discussion.id, 'downvote');
+                                  }}
+                                  disabled={hasVoted}
+                                >
+                                  <ArrowDown className="w-4 h-4" />
+                                </Button>
                               </div>
 
-                              <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
-                                {discussion.content}
-                              </p>
-
-                              <div className="flex flex-wrap gap-2 mb-3">
-                                {discussion.tags.map((tag: string, index: number) => (
-                                  <Badge key={index} variant="secondary" className="text-xs">
-                                    {tag}
-                                  </Badge>
-                                ))}
-                              </div>
-
-                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
-                                <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between mb-2">
                                   <div className="flex items-center space-x-2">
-                                    <Avatar className="w-6 h-6">
-                                      <AvatarFallback className="text-xs bg-gradient-primary text-white">
-                                        {discussion.authorAvatar}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <span className="hidden sm:inline">{discussion.author}</span>
-                                  </div>
-                                  <div className="flex items-center">
-                                    <MessageCircle className="w-4 h-4 mr-1" />
-                                    {discussion.replies}
-                                  </div>
-                                  <div className="flex items-center">
-                                    <Eye className="w-4 h-4 mr-1" />
-                                    {discussion.views}
-                                  </div>
-                                  <div className="flex items-center">
-                                    <Clock className="w-4 h-4 mr-1" />
-                                    <span className="hidden sm:inline">{discussion.lastActivity}</span>
+                                    {discussion.isPinned && (
+                                      <Pin className="w-4 h-4 text-primary flex-shrink-0" />
+                                    )}
+                                    {discussion.isSolved && (
+                                      <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
+                                    )}
+                                    <h3 className="text-base md:text-lg font-semibold hover:text-primary">
+                                      {discussion.title}
+                                    </h3>
                                   </div>
                                 </div>
 
-                                <Badge variant="outline" className="text-xs capitalize">
-                                  {discussion.category}
-                                </Badge>
+                                <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
+                                  {discussion.content}
+                                </p>
+
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                  {discussion.tags.map((tag: string, index: number) => (
+                                    <Badge key={index} variant="secondary" className="text-xs">
+                                      {tag}
+                                    </Badge>
+                                  ))}
+                                </div>
+
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                                  <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                                    <div className="flex items-center space-x-2">
+                                      <Avatar className="w-6 h-6">
+                                        <AvatarFallback className="text-xs bg-gradient-primary text-white">
+                                          {discussion.authorAvatar}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <span className="hidden sm:inline">{discussion.author}</span>
+                                    </div>
+                                    <div className="flex items-center">
+                                      <MessageCircle className="w-4 h-4 mr-1" />
+                                      {discussion.replies}
+                                    </div>
+                                    <div className="flex items-center">
+                                      <Eye className="w-4 h-4 mr-1" />
+                                      {discussion.views}
+                                    </div>
+                                    <div className="flex items-center">
+                                      <Clock className="w-4 h-4 mr-1" />
+                                      <span className="hidden sm:inline">{discussion.lastActivity}</span>
+                                    </div>
+                                  </div>
+
+                                  <Badge variant="outline" className="text-xs capitalize">
+                                    {discussion.category}
+                                  </Badge>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
 
                     {/* Pagination */}
                     <div className="flex items-center justify-between mt-6">
