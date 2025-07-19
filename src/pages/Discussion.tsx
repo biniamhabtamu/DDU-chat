@@ -86,6 +86,12 @@ const Discussion = () => {
   
   const isMobile = useMediaQuery();
 
+  // Get current user (replace with your authentication method)
+  const [currentUser, setCurrentUser] = useState({
+    name: "Biniam Habtamu",  // Example name
+    initials: "BH"          // Example initials
+  });
+
   const categories = [
     { id: "all", name: "All Discussions", count: 0, icon: MessageCircle },
     { id: "programming", name: "Programming", count: 0, icon: Code },
@@ -172,8 +178,8 @@ const Discussion = () => {
       await addDoc(collection(db, "discussions"), {
         ...newDiscussion,
         tags: newDiscussion.tags.split(",").map(tag => tag.trim()),
-        author: "Current User",
-        authorAvatar: "CU",
+        author: currentUser.name,
+        authorAvatar: currentUser.initials,
         upvotes: 0,
         downvotes: 0,
         replies: 0,
@@ -196,8 +202,8 @@ const Discussion = () => {
     try {
       await addDoc(collection(db, "discussions", selectedDiscussion.id, "comments"), {
         content: newComment,
-        author: "Current User",
-        authorAvatar: "CU",
+        author: currentUser.name,
+        authorAvatar: currentUser.initials,
         createdAt: Timestamp.now(),
         upvotes: 0
       });
@@ -425,7 +431,9 @@ const Discussion = () => {
             <div className="mb-6">
               <div className="flex items-start space-x-3">
                 <Avatar className="w-10 h-10">
-                  <AvatarFallback className="bg-gradient-primary text-white">CU</AvatarFallback>
+                  <AvatarFallback className="bg-gradient-primary text-white">
+                    {currentUser.initials}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
                   <textarea
